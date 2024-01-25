@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Time Tracker</title>
+    <style>
+        #timeTracker {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #timerDisplay {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+
+        #stopButton {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="timeTracker">
+        <input type="text" id="taskInput" placeholder="Enter task description" />
+        <button id="startButton" onclick="startTimer()">Start</button>
+        <button id="stopButton" onclick="stopTimer()">Stop</button>        
+        <div id="timerDisplay">00:00:00</div>
+    </div>
+    <script>
+        let db;
+
+        function openDatabase() {
+            const request = indexedDB.open("TimeTrackerDB", 1);
+
+            request.onupgradeneeded = function(e) {
+                db = e.target.result;
+                db.createObjectStore("timeRecords", { autoIncrement: true });
+            };
+
+            request.onsuccess = function(e) {
+                db = e.target.result;
+            };
+
+            request.onerror = function(e) {
+                console.error("Error opening database: ", e);
+            };
+        }
+
+        openDatabase();
+    </script>
+    <script>
+        let currentStartTime, intervalId, currentTimeRecord;
+
+        function getTimeRecord({
+            startTime,
+            stopTime
+        }) {
+            if (currentTimeRecord) {
+                console.log('currenttimerecord', currentTimeRecord);
+                if (stopTime) {
+                    currentTimeRecord.stopTime = stopTime.toISOString()
+                }
+                return currentTimeRecord;
+            } 
+
+            let taskDescription = document.getElementById('taskInput').value;
+
+            let record = {
+                date: new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()).toISOString(),
+                description: taskDescription,
+                startTime: startTime ? startTime.toISOString() : undefined,
+                stopTime: stopTime ? stopTime.toISOString() : undefined,
+            };
+
+            return record;
+        }
+
+        function startTimer() {
+            if (!intervalId) {
+                if (!currentStartTime) {
+                    currentStartTime = new Date();
+                }
+                intervalId = setInterval(updateDisplay, 1000);
+                document.getElementById('startButton').style.display = 'none';
+                document.getElementById('stopButton').style.display = 'inline';
+
+                let startTime = new Date();
+                const record = getTimeRecord({ startTime })
+
+                saveTimeRecord(record, { doReturnRecord: true, keyRecord: currentTimeRecord })
+            }
+        }
+
+        function stopTimer() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+
+                let stopTime = new Date();
+                const record = getTimeRecord({ stopTime })
+
+                saveTimeRecord(record);
+
+                currentStartTime = null;
+                document.getElementById('startButton').style.display = 'inline';
+                document.getElementById('stopButton').style.display = 'none';
+            }
+        }
+
+        function updateDisplay() {
+            const now = new Date();
+            const elapsed = new Date(now - currentStartTime);
+            const hours = elapsed.getUTCHours().toString().padStart(2, '0');
+            const minutes = elapsed.getMinutes().toString().padStart(2, '0');
+            const seconds = elapsed.getSeconds().toString().padStart(2, '0');
+            document.getElementById('timerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        async function saveTimeRecord({ key, ...record }, { doReturnRecord, keyRecord } = {}) {
+            let request;
+            const transaction = db.transaction(["timeRecords"], "readwrite");
+            const store = transaction.objectStore("timeRecords");
+
+            console.log(record);
+            if (key) {
+                request = await store.put(record, key);
+            } else {
+                request = await store.add(record);
+            }
+
+            request.onsuccess = function(e) {
+                if (key) {
+                    console.log("Time record updated:", e.target);
+                } else {
+                    console.log("Time record saved with key:", e.target.result);
+                }
+                if (doReturnRecord) {
+                    record.key = e.target.result;
+                    currentTimeRecord = record;
+                } else {
+                    currentTimeRecord = null;
+                }
+            };
+
+            transaction.oncomplete = function() {
+                if (key) {
+                    console.log("Time record updated!");
+                } else {
+                    console.log("Time record saved!");
+                }
+            };
+
+            transaction.onerror = function(e) {
+                if (key) {
+                    console.error("Error updating record: ", e);
+                } else {
+                    console.error("Error saving record: ", e);
+                }
+            };
+        }
+    </script>
+</body>
+</html>
