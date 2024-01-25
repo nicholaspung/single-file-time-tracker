@@ -23,7 +23,7 @@
     <div id="timeTracker">
         <input type="text" id="taskInput" placeholder="Enter task description" />
         <button id="startButton" onclick="startTimer()">Start</button>
-        <button id="stopButton" onclick="stopTimer()">Stop</button>        
+        <button id="stopButton" onclick="stopTimer()">Stop</button>
         <div id="timerDisplay">00:00:00</div>
     </div>
     <script>
@@ -75,6 +75,14 @@
             return record;
         }
 
+        function resetCurrentTimeValues() {
+            document.getElementById('taskInput').value = '';  // Reset the task description input
+            document.getElementById('timerDisplay').textContent = '00:00:00';  // Reset the timer display
+            currentStartTime = null;  // Reset any relevant variables
+            intervalId = null;
+            currentTimeRecord = null;
+        }
+
         function startTimer() {
             if (!intervalId) {
                 if (!currentStartTime) {
@@ -101,7 +109,7 @@
 
                 saveTimeRecord(record);
 
-                currentStartTime = null;
+                resetCurrentTimeValues()
                 document.getElementById('startButton').style.display = 'inline';
                 document.getElementById('stopButton').style.display = 'none';
             }
