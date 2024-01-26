@@ -17,28 +17,150 @@
         #stopButton {
             display: none;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            width: 200px;
+            padding: 5px;
+        }
+
+        .dropdown .dropdown-label {
+            background-color: #f9f9f9;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .dropdown.open .dropdown-content {
+            display: block;
+            cursor: pointer;
+        }
+
+        /* Styling for selected options */
+        .dropdown-content .option input[type="checkbox"]:checked + label {
+            background-color: #e0e0e0;
+        }
+
+        .option:focus, .dropdown-label:focus {
+            outline: 2px solid blue; /* Example focus style */
+        }
     </style>
 </head>
 <body>
     <div id="timeTracker">
         <input type="text" id="taskInput" placeholder="Enter task description" />
+        <select id="categorySelect">
+            <option value="" selected>Select Category</option>
+            <option value="Work">Work</option>
+            <option value="Study">Study</option>
+        </select>
+        <div id="tagsDropdown" class="dropdown">
+            <div class="dropdown-label" tabindex="0">Select Tags</div>
+            <div class="dropdown-content">
+                <div class="option"><input type="checkbox" id="tag1" value="Urgent"><label for="tag1">Urgent</label></div>
+                <div class="option"><input type="checkbox" id="tag2" value="Important"><label for="tag2">Important</label></div>
+            </div>
+        </div>    
         <button id="startButton" onclick="startTimer()">Start</button>
         <button id="stopButton" onclick="stopTimer()">Stop</button>
         <div id="timerDisplay">00:00:00</div>
     </div>
+    <div id="displayArea"></div>
+    <script>
+        // Toggle dropdown visibility
+        document.getElementById('tagsDropdown').addEventListener('click', function(event) {
+            this.classList.toggle('open');
+        });
+
+        // Handle tag selection
+        document.querySelectorAll('.dropdown .option input[type="checkbox"]').forEach(function(checkbox) {
+            checkbox.addEventListener('change', function(event) {
+                // Update visual state and logic for selected/deselected tags
+                updateTagsDisplay();
+            });
+        });
+
+        function updateTagsDisplay() {
+            const selectedTags = Array.from(document.querySelectorAll('#tagsDropdown .option input[type="checkbox"]:checked'))
+                                    .map(checkbox => checkbox.nextElementSibling.textContent.trim());
+            const displayText = selectedTags.length > 0 ? selectedTags.join(', ') : 'Select Tags';
+            document.querySelector('#tagsDropdown .dropdown-label').textContent = displayText;
+        }
+
+        document.addEventListener('click', function(event) {
+            var isClickInsideDropdown = document.getElementById('tagsDropdown').contains(event.target);
+
+            if (!isClickInsideDropdown) {
+                // The click was outside the dropdown, close it if open
+                var dropdown = document.getElementById('tagsDropdown');
+                dropdown.classList.remove('open');
+            }
+        });
+
+        document.getElementById('tagsDropdown').addEventListener('click', function(event) {
+            // This is to prevent the document-level click handler from being triggered when clicking inside the dropdown
+            event.stopPropagation();
+        });
+
+        function getSelectedTags() {
+            const selectedTags = [];
+            document.querySelectorAll('#tagsDropdown .dropdown-content .option input[type="checkbox"]:checked').forEach(function(checkbox) {
+                selectedTags.push(checkbox.value);
+            });
+            return selectedTags;
+        }
+
+        document.getElementById('tagsDropdown').addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                // Toggle the dropdown
+                this.classList.toggle('open');
+
+                // Prevent default action to stop scrolling when space is pressed
+                event.preventDefault();
+            }
+        });
+    </script>
     <script>
         let db;
+        const timeRecordsDB = 'timeRecords'
 
-        function openDatabase() {
+        function openDatabase(callbacks) {
             const request = indexedDB.open("TimeTrackerDB", 1);
 
             request.onupgradeneeded = function(e) {
                 db = e.target.result;
-                db.createObjectStore("timeRecords", { autoIncrement: true });
+                db.createObjectStore(timeRecordsDB, { autoIncrement: true });
             };
 
             request.onsuccess = function(e) {
                 db = e.target.result;
+                for (let i = 0; i < callbacks.length; i += 1) {
+                    callbacks[i]()
+                }
             };
 
             request.onerror = function(e) {
@@ -46,7 +168,72 @@
             };
         }
 
-        openDatabase();
+        function formatTime(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            return hours.toString().padStart(2, '0') + ':' + minutes + ' ' + ampm;
+        }
+
+        function formatElapsedTime(elapsedTime) {
+            const hours = Math.floor(elapsedTime / (1000 * 60 * 60));
+            const minutes = Math.floor((elapsedTime % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((elapsedTime % (1000 * 60)) / 1000);
+
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function displayRecords() {
+            const transaction = db.transaction(["timeRecords"], "readonly");
+            const store = transaction.objectStore("timeRecords");
+            const request = store.openCursor();
+
+            const displayArea = document.getElementById('displayArea');
+            displayArea.innerHTML = ''; // Clear previous entries
+
+            // Create a table and header row
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <tr>
+                    <th>Description</th>
+                    <th>Time Range</th>
+                    <th>Total Time</th>
+                    <th>Category</th>
+                    <th>Tags</th>
+                </tr>`;
+            displayArea.appendChild(table);
+
+            request.onsuccess = function(event) {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const record = cursor.value;
+                    const row = table.insertRow();
+
+                    const startTime = new Date(record.startTime);
+                    const stopTime = new Date(record.stopTime);
+                    const elapsedTime = new Date(stopTime - startTime);
+
+                    const timeRange = `${formatTime(startTime)} - ${formatTime(stopTime)}`;
+                    const totalElapsedTime = formatElapsedTime(elapsedTime);
+
+                    row.insertCell().textContent = record.description;
+                    row.insertCell().textContent = timeRange;
+                    row.insertCell().textContent = totalElapsedTime;
+                    row.insertCell().textContent = record.category;
+                    row.insertCell().textContent = record.tags && record.tags.length > 0 ? record.tags.join(', ') : ''; // Join tags array into a string
+
+                    cursor.continue();
+                }
+            };
+
+            request.onerror = function(event) {
+                console.error("Error in retrieving records: ", event);
+            };
+        }
+
+        openDatabase([displayRecords]);
     </script>
     <script>
         let currentStartTime, intervalId, currentTimeRecord;
@@ -64,10 +251,14 @@
             } 
 
             let taskDescription = document.getElementById('taskInput').value;
+            let category = document.getElementById('categorySelect').value;
+            let tags = getSelectedTags();
 
             let record = {
                 date: new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()).toISOString(),
-                description: taskDescription,
+                description: taskDescription || 'undefined',
+                category: category,
+                tags: tags,
                 startTime: startTime ? startTime.toISOString() : undefined,
                 stopTime: stopTime ? stopTime.toISOString() : undefined,
             };
@@ -112,6 +303,7 @@
                 resetCurrentTimeValues()
                 document.getElementById('startButton').style.display = 'inline';
                 document.getElementById('stopButton').style.display = 'none';
+                displayRecords()
             }
         }
 
@@ -126,8 +318,8 @@
 
         async function saveTimeRecord({ key, ...record }, { doReturnRecord, keyRecord } = {}) {
             let request;
-            const transaction = db.transaction(["timeRecords"], "readwrite");
-            const store = transaction.objectStore("timeRecords");
+            const transaction = db.transaction([timeRecordsDB], "readwrite");
+            const store = transaction.objectStore(timeRecordsDB);
 
             console.log(record);
             if (key) {
