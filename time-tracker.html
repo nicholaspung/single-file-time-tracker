@@ -32,42 +32,6 @@
         th {
             background-color: #f2f2f2;
         }
-
-        .dropdown {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-            border: 1px solid #ccc;
-            width: 200px;
-            padding: 5px;
-        }
-
-        .dropdown .dropdown-label {
-            background-color: #f9f9f9;
-        }
-
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-        }
-
-        .dropdown.open .dropdown-content {
-            display: block;
-            cursor: pointer;
-        }
-
-        /* Styling for selected options */
-        .dropdown-content .option input[type="checkbox"]:checked + label {
-            background-color: #e0e0e0;
-        }
-
-        .option:focus, .dropdown-label:focus {
-            outline: 2px solid blue; /* Example focus style */
-        }
     </style>
 </head>
 <body>
@@ -90,14 +54,22 @@
     <div id="displayArea"></div>
     <script>
         let db;
+        // DB is NoSQL, but I'd like it to function like a SQL database, with "JOINS"
         const timeRecordsDB = 'timeRecords'
+        const categoryRecordsDB = 'categoryRecords'
+        const tagsRecordsDB = 'tagsRecords'
 
         function openDatabase(callbacks) {
-            const request = indexedDB.open("TimeTrackerDB", 1);
+            const request = indexedDB.open("TimeTrackerDB", 2);
 
             request.onupgradeneeded = function(e) {
                 db = e.target.result;
-                db.createObjectStore(timeRecordsDB, { autoIncrement: true });
+
+                if (!db.objectStoreNames.contains(timeRecordsDB)) {
+                    db.createObjectStore(timeRecordsDB, { autoIncrement: true });
+                }
+                db.createObjectStore(categoryRecordsDB, { autoIncrement: true });
+                db.createObjectStore(tagsRecordsDB, { autoIncrement: true });
             };
 
             request.onsuccess = function(e) {
@@ -166,8 +138,11 @@
                     createEditableCell(row, record.description, 'editable', cursor.key, record, 'description');
                     createEditableCell(row, record.category, 'editable', cursor.key, record, 'category');
                     createEditableCell(row, record.tags && record.tags.length > 0 ? record.tags.join(', ') : '', 'editable', cursor.key, record, 'tags');
-                    createEditableCell(row, timeRange, 'editable');
-                    createEditableCell(row, totalElapsedTime, 'editable');
+                    createCombinedEditableCell(row, 
+                        [{ textContent: formatTime(startTime), field: 'startTime'}, 
+                            { textContent: formatTime(stopTime), field: 'stopTime'}], 
+                        'editable', cursor.key, record, ' - ')
+                    createEditableCell(row, totalElapsedTime);
 
                     // Cell for Edit and Delete buttons
                     const actionCell = row.insertCell();
@@ -223,9 +198,36 @@
     </script>
     <script>
         /* EDIT TABLE CELL FUNCTIONS */
-        function createEditableCell(row, textContent, className, key, record, field) {
+        function createCombinedEditableCell(row, contentArr = [{ textContent: '', field: ''}], className, key, record, joinContent) {
             let cell = row.insertCell();
             cell.className = className;
+
+            const combinedHTML = contentArr.map(content => {
+                const span = document.createElement('span');
+                span.textContent = content.textContent;
+                
+                if (key) {
+                    span.addEventListener('click', function() {
+                        makeCellEditable(this, key, record, content.field);
+                    });
+                }
+
+                return span;
+            })
+
+            for (let i = 0; i < combinedHTML.length; i += 1) {
+                cell.appendChild(combinedHTML[i])
+                if (i !== combinedHTML.length - 1) {
+                    cell.appendChild(document.createTextNode(joinContent))
+                }
+            }
+        }
+
+        function createEditableCell(row, textContent, className, key, record, field) {
+            let cell = row.insertCell();
+            if (className) {
+                cell.className = className;
+            }
             cell.textContent = textContent;
 
             if (key) {
@@ -236,6 +238,7 @@
             }
         }
 
+        /* WORK ON THIS NEXT - ADD IN A TYPE TO CHANGE THE INPUT TYPE WHEN EDITING */
         function makeCellEditable(td, key, record, field) {
             const originalText = td.textContent;
             td.innerHTML = `<input type="text" value="${originalText}" />`;
@@ -264,7 +267,6 @@
             stopTime
         }) {
             if (currentTimeRecord) {
-                console.log('currenttimerecord', currentTimeRecord);
                 if (stopTime) {
                     currentTimeRecord.stopTime = stopTime.toISOString()
                 }
@@ -273,7 +275,14 @@
 
             let taskDescription = document.getElementById('taskInput').value;
             let category = document.getElementById('categorySelect').value;
-            let tags = document.getElementById('tagsSelect').value;
+
+            function getSelectedValues(selectElementId) {
+                const selectElement = document.getElementById(selectElementId);
+                const selectedValues = Array.from(selectElement.selectedOptions)
+                                            .map(option => option.value);
+                return selectedValues;
+            }
+            let tags = getSelectedValues('tagsSelect');
 
             let record = {
                 date: new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()).toISOString(),
