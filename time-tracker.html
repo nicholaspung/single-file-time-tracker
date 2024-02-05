@@ -7,6 +7,7 @@
     </style>
 </head>
 <body>
+    <h4>Time tracking records</h4>
     <div id="timeTracker">
         <input type="text" id="timeTrackerDescriptionInput" placeholder="Enter task description" />
         <select id="timeTrackerCategorySelect">
@@ -20,15 +21,26 @@
             <!-- Add more tags as needed -->
         </select>   
         <button id="startButton" onclick="startTimer()">Start</button>
+        <button id="startPomodoroTimerButton" onclick="startTimer(defaultPomodoroRecord, startPomodoroTimer)">Start Pomodoro</button>
+        <button id="startBreakTimerButton" onclick="startTimer(defaultPomodoroBreakRecord, startBreakTimer)">Start Break</button>
         <button id="stopButton" onclick="stopTimer()">Stop</button>
         <div id="timerDisplay">00:00:00</div>
     </div>
+    <div>
+        <label for="pomodoroTime">Pomodoro time: </label>
+        <input type="number" id="pomodoroTime" value="25" min="1"> min
+        <br>
+        <label for="breakTime">Break time: </label>
+        <input type="number" id="breakTime" value="5" min="1"> min
+    </div>
     <div id="timeTrackerDisplayArea"></div>
+    <h4>Categories for time tracking</h4>
     <div id="trackerCategory">
         <input type="text" id="trackerCategoryCategoryInput" placeholder="Enter category" />
         <button onclick="createTrackerCategory()">Save</button>
     </div>
     <div id="trackerCategoryDisplayArea"></div>
+    <h4>Tags for time tracking</h4>
     <div id="trackerTag">
         <input type="text" id="trackerTagTagInput" placeholder="Enter tag" />
         <button  onclick="createTrackerTag()">Save</button>
@@ -47,33 +59,38 @@
             request.onupgradeneeded = function(e) {
                 db = e.target.result;
 
+                // create object stores
                 if (!db.objectStoreNames.contains(timeRecordsDB)) {
                     db.createObjectStore(timeRecordsDB, { autoIncrement: true });
                 }
                 if (!db.objectStoreNames.contains(categoryRecordsDB)) {
-                    const categoryRecordStore = db.createObjectStore(categoryRecordsDB, { keyPath: 'category', autoIncrement: true });
-                    categoryRecordStore.createIndex('category', 'category', { unique: true })
+                    const categoryRecordStore = db.createObjectStore(categoryRecordsDB, { autoIncrement: true });
                 }
                 if (!db.objectStoreNames.contains(tagsRecordsDB)) {
-                    const tagRecordStore = db.createObjectStore(tagsRecordsDB, { keyPath: 'category', autoIncrement: true });
-                    tagRecordStore.createIndex('tag', 'tag', { unique: true })
+                    const tagRecordStore = db.createObjectStore(tagsRecordsDB, { autoIncrement: true });
+                }
+
+                // create indexes
+                const upgradeTransaction = event.target.transaction
+                if (db.objectStoreNames.contains(categoryRecordsDB)) {
+                    const categoryRecordStore = upgradeTransaction.objectStore(categoryRecordsDB)
+                    if (!categoryRecordStore.indexNames.contains('category')) {
+                        categoryRecordStore.createIndex('category', 'category', { unique: true })
+                    }
+                }
+                if (db.objectStoreNames.contains(tagsRecordsDB)) {
+                    const tagRecordsObjectStore = upgradeTransaction.objectStore(tagsRecordsDB)
+                    console.log(tagRecordsObjectStore);
+                    if (!tagRecordsObjectStore.indexNames.contains('tag')) {
+                        tagRecordsObjectStore.createIndex('tag', 'tag', { unique: true })
+                    // } else {
+                        // example of how to reset an index
+                        // need to delete it first in 1 upgrade, then in the next upgrade create it back
+                        // tagRecordsObjectStore.deleteIndex('tag')
+                        // tagRecordsObjectStore.createIndex('tag', 'tag', { unique: true })
+                    }
                 }
             };
-
-            // request.onupgradeneeded = function(event) {
-            //     var db = event.target.result;
-            //     var upgradeTransaction = event.target.transaction;
-            //     var objectStore;
-            //     if (!db.objectStoreNames.contains("my-store")) {
-            //     objectStore = db.createObjectStore("my-store");
-            //     } else {
-            //     objectStore = upgradeTransaction.objectStore('my-store');
-            //     }
-
-            //     if (!objectStore.indexNames.contains("my-index")) {
-            //     objectStore.createIndex("my-index", "status", { unique: false });
-            //     }
-            // };
 
             request.onsuccess = function(e) {
                 db = e.target.result;
@@ -138,18 +155,18 @@
                     const timeRange = `${formatTime(startTime)} - ${formatTime(stopTime)}`;
                     const totalElapsedTime = formatElapsedTime(elapsedTime);
 
-                    createEditableCell(row, record.description, 'editable', cursor.key, record, 'description');
-                    createEditableCell(row, record.category, 'editable', cursor.key, record, 'category');
-                    createEditableCell(row, record.tags && record.tags.length > 0 ? record.tags.join(', ') : '', 'editable', cursor.key, record, 'tags');
-                    createCombinedEditableCell(row, 
+                    createEditableCell(timeRecordsDB, row, record.description, 'editable', cursor.key, record, 'description');
+                    createEditableCell(timeRecordsDB, row, record.category, 'editable', cursor.key, record, 'category');
+                    createEditableCell(timeRecordsDB, row, record.tags && record.tags.length > 0 ? record.tags.join(', ') : '', 'editable', cursor.key, record, 'tags');
+                    createCombinedEditableCell(timeRecordsDB, row, 
                         [{ textContent: formatTime(startTime), field: 'startTime'}, 
                             { textContent: formatTime(stopTime), field: 'stopTime'}], 
                         'editable', cursor.key, record, ' - ')
-                    createEditableCell(row, totalElapsedTime);
+                    createEditableCell(timeRecordsDB, row, totalElapsedTime);
 
                     // Cell for Edit and Delete buttons
                     const actionCell = row.insertCell();
-                    actionCell.innerHTML = `<button onclick="deleteRecord(${cursor.key})">Delete</button>`;
+                    actionCell.innerHTML = `<button onclick="deleteRecord('${timeRecordsDB}', ${cursor.key})">Delete</button>`;
 
                     cursor.continue();
                 }
@@ -165,13 +182,38 @@
             const store = transaction.objectStore(categoryRecordsDB);
             const request = store.openCursor();
 
+            const trackerCategoryDisplayArea = document.getElementById('trackerCategoryDisplayArea');
+            trackerCategoryDisplayArea.innerHTML = ''; // Clear previous entries
+
+            // Create a table and header row
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <tr>
+                    <th>Category</th>
+                    <th>Actions</th>
+                </tr>`;
+            trackerCategoryDisplayArea.appendChild(table);
+
             request.onsuccess = function(event) {
-                const cursor = event.target.result
+                const cursor = event.target.result;
                 if (cursor) {
-                    console.log(cursor);
-                    cursor.continue()
+                    const record = cursor.value;
+                    const row = table.insertRow();
+
+                    createEditableCell(categoryRecordsDB, row, record.category, 'editable', cursor.key, record, 'category');
+
+                    // Cell for Edit and Delete buttons
+                    const actionCell = row.insertCell();
+                    // adding quotes because cursor.key is a string and value shows without quotes
+                    actionCell.innerHTML = `<button onclick="deleteRecord('${categoryRecordsDB}', '${cursor.key}')">Delete</button>`;
+
+                    cursor.continue();
                 }
-            }
+            };
+
+            request.onerror = function(event) {
+                console.error("Error in retrieving records: ", event);
+            };
         }
 
         function displayTrackerTag() {
@@ -179,29 +221,63 @@
             const store = transaction.objectStore(tagsRecordsDB);
             const request = store.openCursor();
 
+            const trackerTagDisplayArea = document.getElementById('trackerTagDisplayArea');
+            trackerTagDisplayArea.innerHTML = ''; // Clear previous entries
+
+            // Create a table and header row
+            const table = document.createElement('table');
+            table.innerHTML = `
+                <tr>
+                    <th>Tag</th>
+                    <th>Actions</th>
+                </tr>`;
+            trackerTagDisplayArea.appendChild(table);
+
             request.onsuccess = function(event) {
-                const cursor = event.target.result
+                const cursor = event.target.result;
                 if (cursor) {
-                    console.log(cursor);
-                    cursor.continue()
+                    const record = cursor.value;
+                    const row = table.insertRow();
+
+                    createEditableCell(tagsRecordsDB, row, record.tag, 'editable', cursor.key, record, 'tag');
+
+                    // Cell for Edit and Delete buttons
+                    const actionCell = row.insertCell();
+                    // adding quotes because cursor.key is a string and value shows without quotes
+                    actionCell.innerHTML = `<button onclick="deleteRecord('${tagsRecordsDB}', '${cursor.key}')">Delete</button>`;
+
+                    cursor.continue();
                 }
+            };
+
+            request.onerror = function(event) {
+                console.error("Error in retrieving records: ", event);
+            };
+        }
+
+        function refreshDisplayAccordingToDb(db) {
+            if (db === timeRecordsDB) {
+                displayTimeTrackerRecords();
+            } else if (db === categoryRecordsDB) {
+                displayTrackerCategory();
+            } else if (db === tagsRecordsDB) {
+                displayTrackerTag();
             }
         }
 
-        async function editRecordField(key, record, field, value) {
-            const transaction = db.transaction([timeRecordsDB], "readwrite");
-            const store = transaction.objectStore(timeRecordsDB);
+        async function editRecordField(recordDb, key, record, field, value) {
+            const transaction = db.transaction([recordDb], "readwrite");
+            const store = transaction.objectStore(recordDb);
 
             // TO BE UPDATED
             const updatedRecord = {...record}
-            updatedRecord[field] = value
-
+            updatedRecord[field] = value            
             const request = await store.put(updatedRecord, key);
 
             request.onsuccess = function(e) {
                 const record = e.target.result;
                 console.log("Record updated successfully", record);
-                displayTimeTrackerRecords(); // Refresh the displayed records
+                refreshDisplayAccordingToDb(recordDb); // Refresh the displayed records
             };
 
             request.onerror = function(e) {
@@ -209,15 +285,15 @@
             };
         }
 
-        function deleteRecord(key) {
-            const transaction = db.transaction([timeRecordsDB], "readwrite");
-            const store = transaction.objectStore(timeRecordsDB);
+        function deleteRecord(recordDb, key) {
+            const transaction = db.transaction([recordDb], "readwrite");
+            const store = transaction.objectStore(recordDb);
             store.delete(key);
 
             transaction.oncomplete = function() {
                 console.log("Record deleted successfully");
                 // Refresh the displayed records
-                displayTimeTrackerRecords();
+                refreshDisplayAccordingToDb(recordDb);
             };
 
             transaction.onerror = function(e) {
@@ -229,7 +305,7 @@
     </script>
     <script>
         /* EDIT TABLE CELL FUNCTIONS */
-        function createCombinedEditableCell(row, contentArr = [{ textContent: '', field: ''}], className, key, record, joinContent) {
+        function createCombinedEditableCell(recordDb, row, contentArr = [{ textContent: '', field: ''}], className, key, record, joinContent) {
             let cell = row.insertCell();
             cell.className = className;
 
@@ -239,7 +315,7 @@
                 
                 if (key) {
                     span.addEventListener('click', function() {
-                        makeCellEditable(this, key, record, content.field);
+                        makeCellEditable(recordDb, this, key, record, content.field);
                     });
                 }
 
@@ -254,7 +330,7 @@
             }
         }
 
-        function createEditableCell(row, textContent, className, key, record, field) {
+        function createEditableCell(recordDb, row, textContent, className, key, record, field) {
             let cell = row.insertCell();
             if (className) {
                 cell.className = className;
@@ -264,26 +340,28 @@
             if (key) {
                 cell.addEventListener('click', function() {
                     // Your logic to make the cell editable
-                    makeCellEditable(this, key, record, field);
+                    makeCellEditable(recordDb, this, key, record, field);
                 });
             }
         }
 
         /* WORK ON THIS NEXT - ADD IN A TYPE TO CHANGE THE INPUT TYPE WHEN EDITING */
-        function makeCellEditable(td, key, record, field) {
+        function makeCellEditable(recordDb, td, key, record, field) {
             const originalText = td.textContent;
             td.innerHTML = `<input type="text" value="${originalText}" />`;
             const input = td.querySelector('input');
             input.focus();
 
             input.addEventListener('blur', function() {
-                td.textContent = this.value; // Or handle updating the record in IndexedDB
-                editRecordField(key, record, field, td.textContent)
+                td.innerHTML = '';
+                td.textContent = originalText; // Or handle updating the record in IndexedDB
+                // editRecordField(recordDb, key, record, field, td.textContent)
             });
 
             input.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
-                    this.blur(); // Triggers the blur event
+                    td.textContent = this.value; // Or handle updating the record in IndexedDB
+                    editRecordField(recordDb, key, record, field, td.textContent)
                 }
             });
         }
@@ -294,6 +372,8 @@
         let currentStartTime, intervalId, currentTimeRecord;
 
         function getTimeRecord({
+            description,
+            tags,
             startTime,
             stopTime
         }) {
@@ -313,13 +393,13 @@
                                             .map(option => option.value);
                 return selectedValues;
             }
-            let tags = getSelectedValues('timeTrackerTagsSelect');
+            let tagsSelect = getSelectedValues('timeTrackerTagsSelect');
 
             let record = {
                 date: new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()).toISOString(),
-                description: taskDescription || 'undefined',
+                description: description || taskDescription || 'undefined',
                 category: category,
-                tags: tags,
+                tags: [...tags, ...tagsSelect],
                 startTime: startTime ? startTime.toISOString() : undefined,
                 stopTime: stopTime ? stopTime.toISOString() : undefined,
             };
@@ -335,20 +415,51 @@
             currentTimeRecord = null;
         }
 
-        function startTimer() {
+        function startTimer(defaultRecord, callback) {
             if (!intervalId) {
                 if (!currentStartTime) {
                     currentStartTime = new Date();
                 }
                 intervalId = setInterval(updateTimeTrackerDisplay, 1000);
                 document.getElementById('startButton').style.display = 'none';
+                document.getElementById('startPomodoroTimerButton').style.display = 'none';
+                document.getElementById('startBreakTimerButton').style.display = 'none';
                 document.getElementById('stopButton').style.display = 'inline';
 
                 let startTime = new Date();
-                const record = getTimeRecord({ startTime })
+                let record;
+                if (defaultRecord) {
+                    record = getTimeRecord({ ...defaultRecord, startTime })
+                } else {
+                    record = getTimeRecord({ startTime })
+                }
 
                 saveTimeRecord(record, true)
+                if (callback) {
+                    callback()
+                }
             }
+        }
+
+        const defaultPomodoroRecord = { tags: ['Pomodoro'] }
+        function startPomodoroTimer() {
+            const timerMin = document.getElementById('pomodoroTime').value;
+            const timerMs = timerMin * 60 * 1000
+            setTimeout(function () {
+                stopTimer();
+                alert('Pomodoro finished!');
+                startBreakTimer();
+            }, timerMs)
+        }
+
+        const defaultPomodoroBreakRecord = { description: 'Break', tags: ['Pomodoro Break'] }
+        function startBreakTimer() {
+            const timerMin = document.getElementById('breakTime').value;
+            const timerMs = timerMin * 60 * 1000
+            setTimeout(function () {
+                alert('Break finished!');
+                stopTimer();
+            }, timerMs)
         }
 
         function stopTimer() {
@@ -420,6 +531,12 @@
         }
     </script>
     <script>
+        function resetCurrentTrackerCategoryValue() {
+            document.getElementById('trackerCategoryCategoryInput').value = '';  // Reset the task description input
+        }
+        function resetCurrentTrackerTagValue() {
+            document.getElementById('trackerTagTagInput').value = '';  // Reset the task description input
+        }
         async function createTrackerCategory() {
             const category = document.getElementById('trackerCategoryCategoryInput').value;
 
@@ -431,6 +548,8 @@
 
             request.onsuccess = function(e) {
                 console.log("Tracker category created with key:", e.target.result);
+                resetCurrentTrackerCategoryValue();
+                displayTrackerCategory();
             };
 
             transaction.oncomplete = function() {
@@ -452,6 +571,8 @@
 
             request.onsuccess = function(e) {
                 console.log("Tracker tag created with key:", e.target.result);
+                resetCurrentTrackerTagValue();
+                displayTrackerTag();
             };
 
             transaction.oncomplete = function() {
