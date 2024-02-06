@@ -12,13 +12,15 @@ Done
     - add a config for pomodoro to modify time for it ✅ 2024-02-04
     - add a config for break to modify time for it ✅ 2024-02-04
     - make clicking pomodoro after it ends to automatically start break ✅ 2024-02-04
+    - modify category list to use the new categories ✅ 2024-02-05
+        - likely model the data { db, key } ✅ 2024-02-05
+    - modify tag list to use the new tags ✅ 2024-02-05
+        - likely model the data { db, key } ✅ 2024-02-05
+- 2024-02-04
+    - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down ✅ 2024-02-05
 
 Not done
 - 2024-02-01
-    - modify category list to use the new categories
-        - likely model the data { db, key }
-    - modify tag list to use the new tags
-        - likely model the data { db, key }
     - figure out a way to send notifications for when a pomodoro finishes
         - add a config to enable notifications for this
     - send a notification for when a break finishes
@@ -31,6 +33,12 @@ Not done
     - make the cells editable able to choose between different inputs
     - check the latest record, and if there is no end time, start updating the display automatically
     - reverse sort the time tracking records
-    - save the pomodoro and break time config in indexeddb
+    - save the pomodoro and break time config in localstorage
     - make the website a progressive web app
-    - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down
+
+- 2024-02-05
+    - there's a bug when you click on an editable cell, and you try clicking into it to go to another position where it triggers again and makes it a regular cell again
+    - in editable cell, add an option to show the records
+    - on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
+    - in time tracking, if stopTime is undefined, make it show ''
+    - add another table that saves all the different descriptions there are, so that when a user types in the description, it can pop up later on

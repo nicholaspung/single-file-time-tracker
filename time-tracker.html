@@ -11,20 +11,16 @@
     <div id="timeTracker">
         <input type="text" id="timeTrackerDescriptionInput" placeholder="Enter task description" />
         <select id="timeTrackerCategorySelect">
-            <option value="" selected>Select Category</option>
-            <option value="Work">Work</option>
-            <option value="Study">Study</option>
+            <option value="" selected>Select category</option>
         </select>
         <select id="timeTrackerTagsSelect" multiple>
-            <option value="Urgent">Urgent</option>
-            <option value="Important">Important</option>
-            <!-- Add more tags as needed -->
         </select>   
         <button id="startButton" onclick="startTimer()">Start</button>
         <button id="startPomodoroTimerButton" onclick="startTimer(defaultPomodoroRecord, startPomodoroTimer)">Start Pomodoro</button>
         <button id="startBreakTimerButton" onclick="startTimer(defaultPomodoroBreakRecord, startBreakTimer)">Start Break</button>
         <button id="stopButton" onclick="stopTimer()">Stop</button>
         <div id="timerDisplay">00:00:00</div>
+        <div id="pomodoroTimerDisplay"></div>
     </div>
     <div>
         <label for="pomodoroTime">Pomodoro time: </label>
@@ -80,7 +76,6 @@
                 }
                 if (db.objectStoreNames.contains(tagsRecordsDB)) {
                     const tagRecordsObjectStore = upgradeTransaction.objectStore(tagsRecordsDB)
-                    console.log(tagRecordsObjectStore);
                     if (!tagRecordsObjectStore.indexNames.contains('tag')) {
                         tagRecordsObjectStore.createIndex('tag', 'tag', { unique: true })
                     // } else {
@@ -157,7 +152,8 @@
 
                     createEditableCell(timeRecordsDB, row, record.description, 'editable', cursor.key, record, 'description');
                     createEditableCell(timeRecordsDB, row, record.category, 'editable', cursor.key, record, 'category');
-                    createEditableCell(timeRecordsDB, row, record.tags && record.tags.length > 0 ? record.tags.join(', ') : '', 'editable', cursor.key, record, 'tags');
+                    const tags = record.tags && record.tags.length > 0 ? record.tags.join(', ') : '';
+                    createEditableCell(timeRecordsDB, row, tags, 'editable', cursor.key, record, 'tags');
                     createCombinedEditableCell(timeRecordsDB, row, 
                         [{ textContent: formatTime(startTime), field: 'startTime'}, 
                             { textContent: formatTime(stopTime), field: 'stopTime'}], 
@@ -193,6 +189,7 @@
                     <th>Actions</th>
                 </tr>`;
             trackerCategoryDisplayArea.appendChild(table);
+            resetSelectToDefault('timeTrackerCategorySelect');
 
             request.onsuccess = function(event) {
                 const cursor = event.target.result;
@@ -205,7 +202,10 @@
                     // Cell for Edit and Delete buttons
                     const actionCell = row.insertCell();
                     // adding quotes because cursor.key is a string and value shows without quotes
-                    actionCell.innerHTML = `<button onclick="deleteRecord('${categoryRecordsDB}', '${cursor.key}')">Delete</button>`;
+                    actionCell.innerHTML = `<button onclick="deleteRecord('${categoryRecordsDB}', ${cursor.key})">Delete</button>`;
+
+                    // also adds the category values to select
+                    addOptionToSelect('timeTrackerCategorySelect', cursor.value.category)
 
                     cursor.continue();
                 }
@@ -232,6 +232,7 @@
                     <th>Actions</th>
                 </tr>`;
             trackerTagDisplayArea.appendChild(table);
+            resetSelectToDefault('timeTrackerTagsSelect', true);
 
             request.onsuccess = function(event) {
                 const cursor = event.target.result;
@@ -244,7 +245,11 @@
                     // Cell for Edit and Delete buttons
                     const actionCell = row.insertCell();
                     // adding quotes because cursor.key is a string and value shows without quotes
-                    actionCell.innerHTML = `<button onclick="deleteRecord('${tagsRecordsDB}', '${cursor.key}')">Delete</button>`;
+                    actionCell.innerHTML = `<button onclick="deleteRecord('${tagsRecordsDB}', ${cursor.key})">Delete</button>`;
+                    
+                    // also adds the tag values to select
+                    addOptionToSelect('timeTrackerTagsSelect', cursor.value.tag)
+
 
                     cursor.continue();
                 }
@@ -290,7 +295,7 @@
             const store = transaction.objectStore(recordDb);
             store.delete(key);
 
-            transaction.oncomplete = function() {
+            transaction.oncomplete = function(e) {
                 console.log("Record deleted successfully");
                 // Refresh the displayed records
                 refreshDisplayAccordingToDb(recordDb);
@@ -299,6 +304,28 @@
             transaction.onerror = function(e) {
                 console.error("Error deleting record: ", e.target.error);
             };
+        }
+
+        function addOptionToSelect(elementId, data) {
+            const selectElement = document.getElementById(elementId);
+            const option = document.createElement('option');
+            option.value = data;
+            option.textContent = data;
+            selectElement.appendChild(option);
+        }
+
+        function resetSelectToDefault(elementId, removeFirst = false) {
+            const selectElement = document.getElementById(elementId);
+            if (removeFirst) {
+                selectElement.innerHTML = ''
+            } else {
+                // Remove all options except the first one
+                while (selectElement.options.length > 1) {
+                    selectElement.remove(1);
+                }
+                // Optionally reset the first option to be selected
+                selectElement.selectedIndex = 0;
+            }
         }
 
         openDatabase([displayTrackerCategory, displayTrackerTag, displayTimeTrackerRecords]);
@@ -369,7 +396,7 @@
     </script>
     <script>
         /* TIMER FUNCTIONS */
-        let currentStartTime, intervalId, currentTimeRecord;
+        let currentStartTime, intervalId, timeoutId, currentTimeRecord;
 
         function getTimeRecord({
             description,
@@ -399,7 +426,7 @@
                 date: new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()).toISOString(),
                 description: description || taskDescription || 'undefined',
                 category: category,
-                tags: [...tags, ...tagsSelect],
+                tags: tags ? [...tags, ...tagsSelect] : tagsSelect,
                 startTime: startTime ? startTime.toISOString() : undefined,
                 stopTime: stopTime ? stopTime.toISOString() : undefined,
             };
@@ -410,9 +437,14 @@
         function resetCurrentTimeValues() {
             document.getElementById('timeTrackerDescriptionInput').value = '';  // Reset the task description input
             document.getElementById('timerDisplay').textContent = '00:00:00';  // Reset the timer display
+            document.getElementById('timerDisplay').style.display = 'block';
+            document.getElementById('pomodoroTimerDisplay').innerHTML = '';
             currentStartTime = null;  // Reset any relevant variables
             intervalId = null;
             currentTimeRecord = null;
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
         }
 
         function startTimer(defaultRecord, callback) {
@@ -420,7 +452,11 @@
                 if (!currentStartTime) {
                     currentStartTime = new Date();
                 }
-                intervalId = setInterval(updateTimeTrackerDisplay, 1000);
+                if (callback) {
+                    callback()
+                } else {
+                    intervalId = setInterval(updateTimeTrackerDisplayIncrement, 1000);
+                }
                 document.getElementById('startButton').style.display = 'none';
                 document.getElementById('startPomodoroTimerButton').style.display = 'none';
                 document.getElementById('startBreakTimerButton').style.display = 'none';
@@ -435,34 +471,48 @@
                 }
 
                 saveTimeRecord(record, true)
-                if (callback) {
-                    callback()
-                }
+
             }
         }
 
-        const defaultPomodoroRecord = { tags: ['Pomodoro'] }
+        const defaultPomodoroRecord = { tags: ['pomodoro'] }
         function startPomodoroTimer() {
+            document.getElementById('timerDisplay').style.display = 'none';
             const timerMin = document.getElementById('pomodoroTime').value;
             const timerMs = timerMin * 60 * 1000
-            setTimeout(function () {
+            const curretStartTimeAndPomodoroTime = currentStartTime.getTime() + timerMs // Set start time to 25 minutes from now
+            updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroTime) // calls the function first to show display
+            intervalId = setInterval(function () {
+                updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroTime)
+            }, 1000);
+            timeoutId = setTimeout(function () {
                 stopTimer();
                 alert('Pomodoro finished!');
                 startBreakTimer();
             }, timerMs)
         }
 
-        const defaultPomodoroBreakRecord = { description: 'Break', tags: ['Pomodoro Break'] }
+        const defaultPomodoroBreakRecord = { description: 'Break', tags: ['pomodoro-break'] }
         function startBreakTimer() {
+            document.getElementById('pomodoroTimerDisplay').style.display = 'block';
+            document.getElementById('timerDisplay').style.display = 'none';
             const timerMin = document.getElementById('breakTime').value;
             const timerMs = timerMin * 60 * 1000
-            setTimeout(function () {
+            const curretStartTimeAndPomodoroBreakTime = currentStartTime.getTime() + timerMs // Set start time to 25 minutes from now
+            updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroBreakTime) // calls the function first to show display
+            intervalId = setInterval(function () {
+                updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroBreakTime)
+            }, 1000);
+            timeoutId = setTimeout(function () {
                 alert('Break finished!');
                 stopTimer();
             }, timerMs)
         }
 
         function stopTimer() {
+            if (timeoutId) {
+                clearTimeout(timeoutId)
+            }
             if (intervalId) {
                 clearInterval(intervalId);
                 intervalId = null;
@@ -474,18 +524,32 @@
 
                 resetCurrentTimeValues()
                 document.getElementById('startButton').style.display = 'inline';
+                document.getElementById('startPomodoroTimerButton').style.display = 'inline';
+                document.getElementById('startBreakTimerButton').style.display = 'inline';
                 document.getElementById('stopButton').style.display = 'none';
                 displayTimeTrackerRecords()
             }
         }
 
-        function updateTimeTrackerDisplay() {
+        function updateTimeTrackerDisplayIncrement() {
+            document.getElementById('pomodoroTimerDisplay').style.display = 'none';
             const now = new Date();
             const elapsed = new Date(now - currentStartTime);
             const hours = elapsed.getUTCHours().toString().padStart(2, '0');
             const minutes = elapsed.getMinutes().toString().padStart(2, '0');
             const seconds = elapsed.getSeconds().toString().padStart(2, '0');
             document.getElementById('timerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
+        }
+
+        // startTime = current time + extra time needed to start decrementing
+        function updateTimeTrackerDisplayDecrement(startTime) {
+            document.getElementById('timerDisplay').style.display = 'none';
+            const now = new Date();
+            const remaining = new Date(startTime - now);
+            const hours = remaining.getUTCHours().toString().padStart(2, '0');
+            const minutes = remaining.getMinutes().toString().padStart(2, '0');
+            const seconds = remaining.getSeconds().toString().padStart(2, '0');
+            document.getElementById('pomodoroTimerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
         }
 
         async function saveTimeRecord({ key, ...record }, doReturnRecord = false) {
