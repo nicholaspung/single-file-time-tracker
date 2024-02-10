@@ -51,3 +51,4 @@ Not done
 
 - 2024-02-09
     - Create a button when it checks the latest record, that you can change the time to the current time
+    - When deleting a time tracking record, it currently does not display the correct records because I forgot to add the condition of removing a record if it doesn't show up in the fetching of data
