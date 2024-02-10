@@ -16,8 +16,17 @@ Done
         - likely model the data { db, key } ✅ 2024-02-05
     - modify tag list to use the new tags ✅ 2024-02-05
         - likely model the data { db, key } ✅ 2024-02-05
+    - add a display to show start time ✅ 2024-02-09
+        - add a button to change the start time value to previous log value for the day ✅ 2024-02-09
 - 2024-02-04
     - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down ✅ 2024-02-05
+    - reverse sort the time tracking records ✅ 2024-02-09
+
+Working on
+- check the latest record, and if there is no end time, start updating the display automatically
+- save the pomodoro and break time config in localstorage
+- make the website a progressive web app
+- allow user to modify the description/category/tags while it is being run
 
 Not done
 - 2024-02-01
@@ -25,14 +34,11 @@ Not done
         - add a config to enable notifications for this
     - send a notification for when a break finishes
         - add a config to enable notifications for this
-    - add a display to show start time
-        - add a button to change the start time value to previous log value for the day
     - allow user to modify the description/category/tags while it is being run
 
 - 2024-02-04
     - make the cells editable able to choose between different inputs
-    - check the latest record, and if there is no end time, start updating the display automatically
-    - reverse sort the time tracking records
+    - check the latest record, and if there is no end time, start updating the display automatically 
     - save the pomodoro and break time config in localstorage
     - make the website a progressive web app
 
@@ -42,3 +48,6 @@ Not done
     - on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
     - in time tracking, if stopTime is undefined, make it show ''
     - add another table that saves all the different descriptions there are, so that when a user types in the description, it can pop up later on
+
+- 2024-02-09
+    - Create a button when it checks the latest record, that you can change the time to the current time
