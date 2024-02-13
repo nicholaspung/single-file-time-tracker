@@ -7,8 +7,8 @@
     </style>
 </head>
 <body>
-    <h4>Time tracking records</h4>
     <div id="timeTracker">
+        <h4>Track time</h4>
         <input type="text" id="timeTrackerDescriptionInput" placeholder="Enter task description" />
         <select id="timeTrackerCategorySelect">
             <option value="" selected>Select category</option>
@@ -31,12 +31,16 @@
         <div id="pomodoroTimerDisplay"></div>
     </div>
     <div>
+        <h4>Pomodoro settings</h4>
         <label for="pomodoroTime">Pomodoro time: </label>
         <input type="number" id="pomodoroTime" value="25" min="1"> min
+        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('pomodoro')">Save pomodoro time config</button>
         <br>
         <label for="breakTime">Break time: </label>
         <input type="number" id="breakTime" value="5" min="1"> min
+        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('break')">Save break time config</button>
     </div>
+    <h4>Time tracking records</h4>
     <div id="timeTrackerDisplayArea"></div>
     <h4>Categories for time tracking</h4>
     <div id="trackerCategory">
@@ -60,6 +64,7 @@
         let defaultStartTime, latestRecord;
 
         const timeTrackingRecords = []
+        let pomodoroConfig = {}
 
         function openDatabase(callbacks) {
             const request = indexedDB.open("TimeTrackerDB", 1);
@@ -397,9 +402,37 @@
             }
         }
 
+        function fetchPomodoroConfigLocalStorage() {
+            const fetchedPomodoroConfig = localStorage.getItem('pomodoroConfig')
+            if (fetchedPomodoroConfig) {
+                pomodoroConfig = fetchedPomodoroConfig ? JSON.parse(fetchedPomodoroConfig) : {};
+                document.getElementById('pomodoroTime').value = pomodoroConfig.pomodoroTime
+                document.getElementById('breakTime').value = pomodoroConfig.breakTime
+            } else {
+                localStorage.setItem('pomodoroConfig', JSON.stringify({
+                    pomodoroTime: 25,
+                    breakTime: 5
+                }))
+            }
+        }
+
+        function setPomodoroConfigLocalStorage(type) {
+            const config = { ...pomodoroConfig }
+            console.log(config);
+            if (type === 'pomodoro') {
+                const pomodoroValue = document.getElementById('pomodoroTime').value
+                config.pomodoroTime = pomodoroValue
+            } else {
+                const breakValue = document.getElementById('breakTime').value
+                config.breakTime = breakValue
+            }
+            pomodoroConfig = config
+            localStorage.setItem('pomodoroConfig', JSON.stringify(config))
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
             setDefaultDateForStartTimeAndStopTimeInput()
-            openDatabase([displayTrackerCategory, displayTrackerTag, fetchTimeTrackerRecords]);
+            openDatabase([displayTrackerCategory, displayTrackerTag, fetchTimeTrackerRecords, fetchPomodoroConfigLocalStorage]);
         });
     </script>
     <script>

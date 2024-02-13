@@ -21,10 +21,10 @@ Done
 - 2024-02-04
     - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down ✅ 2024-02-05
     - reverse sort the time tracking records ✅ 2024-02-09
+    - save the pomodoro and break time config in localstorage ✅ 2024-02-12
 
 Working on
 - check the latest record, and if there is no end time, start updating the display automatically
-- save the pomodoro and break time config in localstorage
 - make the website a progressive web app
 - allow user to modify the description/category/tags while it is being run
 
@@ -39,7 +39,7 @@ Not done
 - 2024-02-04
     - make the cells editable able to choose between different inputs
     - check the latest record, and if there is no end time, start updating the display automatically 
-    - save the pomodoro and break time config in localstorage
+
     - make the website a progressive web app
 
 - 2024-02-05
@@ -52,3 +52,6 @@ Not done
 - 2024-02-09
     - Create a button when it checks the latest record, that you can change the time to the current time
     - When deleting a time tracking record, it currently does not display the correct records because I forgot to add the condition of removing a record if it doesn't show up in the fetching of data
+- 2024-02-12
+    - create a button that is able to check the position of the record relative to the other records, and be able to set the time to the previous/latest start/stop time
+    - make into a desktop app using Tauri (figure out Tauri and Rust)
