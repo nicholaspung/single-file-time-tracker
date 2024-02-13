@@ -418,7 +418,6 @@
 
         function setPomodoroConfigLocalStorage(type) {
             const config = { ...pomodoroConfig }
-            console.log(config);
             if (type === 'pomodoro') {
                 const pomodoroValue = document.getElementById('pomodoroTime').value
                 config.pomodoroTime = pomodoroValue
