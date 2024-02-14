@@ -63,8 +63,10 @@
 
         let defaultStartTime, latestRecord;
 
-        const timeTrackingRecords = []
+        let timeTrackingRecords = []
         let pomodoroConfig = {}
+
+        let currentStartTime, intervalId, timeoutId, currentTimeRecord;
 
         function openDatabase(callbacks) {
             const request = indexedDB.open("TimeTrackerDB", 1);
@@ -174,6 +176,7 @@
             }
 
             records = sortTimeRecordsByLatestToOldest()
+            timeTrackingRecords = records
 
             records.forEach(function(record) {
                 const row = table.insertRow();
@@ -217,6 +220,7 @@
                     cursor.continue();
                 } else {
                     displayTimeTrackerRecords();
+                    checkIfLatestRecordIsNotFinished();
                 }
             };
 
@@ -429,8 +433,49 @@
             localStorage.setItem('pomodoroConfig', JSON.stringify(config))
         }
 
+        function checkIfLatestRecordIsNotFinished() {
+            const latestRecord = timeTrackingRecords[0]
+            if (!latestRecord.stopTime) {
+                currentTimeRecord = latestRecord
+                currentStartTime = new Date(latestRecord.startTime)
+                if (latestRecord.tags.includes('pomodoro')) {
+                    completePomodoroOrBreakTimeIfPastDuration(latestRecord, 'pomodoro')
+                } else if (latestRecord.tags.includes('pomodoro-break')) {
+                    completePomodoroOrBreakTimeIfPastDuration(latestRecord, 'pomodoro-break')
+                } else {
+                    startTimer(latestRecord, undefined, false)
+                }
+            }
+        }
+
+        async function completePomodoroOrBreakTimeIfPastDuration(record, type) {
+            const now = new Date()
+            let duration = 60 * 1000;
+            const dateStartTime = new Date(record.startTime)
+            if (type === 'pomodoro') {
+                duration *= pomodoroConfig.pomodoroTime
+            } else if (type === 'pomodoro-break') {
+                duration *= pomodoroConfig.breakTime
+            }
+            if (isPastDuration(now, dateStartTime, duration)) {
+                stopTimer(new Date(new Date(record.startTime).getTime() + duration))
+            } else {
+                if (type === 'pomodoro') {
+                    startTimer(record, startPomodoroTimer, false)
+                } else if (type === 'pomodoro-break') {
+                    startTimer(record, startBreakTimer, false)
+                }
+            }
+        }
+        function isPastDuration(now, startTime, duration) {
+            // Assuming now, startTime, and duration are all Date objects or time in milliseconds
+            const endTime = new Date(startTime.getTime() + duration);
+            return now > endTime;
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
             setDefaultDateForStartTimeAndStopTimeInput()
+            fetchPomodoroConfigLocalStorage()
             openDatabase([displayTrackerCategory, displayTrackerTag, fetchTimeTrackerRecords, fetchPomodoroConfigLocalStorage]);
         });
     </script>
@@ -500,7 +545,6 @@
     </script>
     <script>
         /* TIMER FUNCTIONS */
-        let currentStartTime, intervalId, timeoutId, currentTimeRecord;
 
         function getTimeRecord({
             description,
@@ -561,9 +605,9 @@
             document.getElementById('timeTrackerStopTimeInput').style.display = 'inline';
         }
 
-        function startTimer(defaultRecord, callback) {
+        function startTimer(defaultRecord, callback, autoSave = true) {
             if (!intervalId) {
-                let record;
+                let record, startTime;
 
                 if (!currentStartTime) {
                     currentStartTime = new Date();
@@ -581,7 +625,6 @@
                 document.getElementById('addTimeButton').style.display = 'none';
                 document.getElementById('timeTrackerStopTimeInput').style.display = 'none';
 
-                console.log(startTime, getDateTimeLocalValueFromDate(startTime));
                 document.getElementById('timeTrackerStartTimeInput').value = getDateTimeLocalValueFromDate(startTime);
 
                 if (defaultRecord) {
@@ -590,7 +633,9 @@
                     record = getTimeRecord({ startTime })
                 }
 
-                return saveTimeRecord(record, true)
+                if (autoSave) {
+                    return saveTimeRecord(record, true)
+                }
 
             }
         }
@@ -629,24 +674,23 @@
             }, timerMs)
         }
 
-        async function stopTimer() {
+        async function stopTimer(defaultStopTime) {
             if (timeoutId) {
                 clearTimeout(timeoutId)
             }
             if (intervalId) {
                 clearInterval(intervalId);
                 intervalId = null;
-
-                let stopTime = new Date();
-                const record = getTimeRecord({ stopTime })
-
-                saveTimeRecord(record);
-
-                resetCurrentTimeValues();
-                resetTimeTrackerItems();
-                await fetchTimeTrackerRecords();
-                displayTimeTrackerRecords();
             }
+
+            let stopTime = new Date();
+            const record = getTimeRecord({ stopTime: defaultStopTime ? defaultStopTime : stopTime })
+            await saveTimeRecord(record, true);
+
+            resetCurrentTimeValues();
+            resetTimeTrackerItems();
+            await fetchTimeTrackerRecords();
+            displayTimeTrackerRecords();
         }
 
         async function addTimeRecord() {
@@ -669,10 +713,9 @@
             }
         }
 
-        function updateTimeTrackerDisplayIncrement() {
+        function updateTimeTrackerDisplayIncrement(date = new Date()) {
             document.getElementById('pomodoroTimerDisplay').style.display = 'none';
-            const now = new Date();
-            const elapsed = new Date(now - currentStartTime);
+            const elapsed = new Date(date - currentStartTime);
             const hours = elapsed.getUTCHours().toString().padStart(2, '0');
             const minutes = elapsed.getMinutes().toString().padStart(2, '0');
             const seconds = elapsed.getSeconds().toString().padStart(2, '0');

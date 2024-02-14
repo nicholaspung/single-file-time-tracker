@@ -22,11 +22,13 @@ Done
     - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down ✅ 2024-02-05
     - reverse sort the time tracking records ✅ 2024-02-09
     - save the pomodoro and break time config in localstorage ✅ 2024-02-12
+    - check the latest record, and if there is no end time, start updating the display automatically ✅ 2024-02-13
 
 Working on
-- check the latest record, and if there is no end time, start updating the display automatically
 - make the website a progressive web app
 - allow user to modify the description/category/tags while it is being run
+- in time tracking, if stopTime is undefined, make it show ''
+- When deleting a time tracking record, it currently does not display the correct records because I forgot to add the condition of removing a record if it doesn't show up in the fetching of data
 
 Not done
 - 2024-02-01
@@ -38,8 +40,6 @@ Not done
 
 - 2024-02-04
     - make the cells editable able to choose between different inputs
-    - check the latest record, and if there is no end time, start updating the display automatically 
-
     - make the website a progressive web app
 
 - 2024-02-05
@@ -47,7 +47,7 @@ Not done
     - in editable cell, add an option to show the records
     - on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
     - in time tracking, if stopTime is undefined, make it show ''
-    - add another table that saves all the different descriptions there are, so that when a user types in the description, it can pop up later on
+    - add another table that saves all the different descriptions there are, so that when a user types in the description, it can pop up later on for autocomplete
 
 - 2024-02-09
     - Create a button when it checks the latest record, that you can change the time to the current time
@@ -55,3 +55,6 @@ Not done
 - 2024-02-12
     - create a button that is able to check the position of the record relative to the other records, and be able to set the time to the previous/latest start/stop time
     - make into a desktop app using Tauri (figure out Tauri and Rust)
+    - add hotkeys to be able to focus on specific inputs and tables to navigate everything through the keyboard
+    - add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc.
+    - for pomodoro config, move the values to be read from the configs, and not the elements
