@@ -119,6 +119,9 @@
         }
 
         function formatTime(date) {
+            if (!date) {
+                return ''
+            }
             let hours = date.getHours();
             const minutes = date.getMinutes().toString().padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -128,6 +131,9 @@
         }
 
         function formatElapsedTime(elapsedTime) {
+            if (!elapsedTime) {
+                return ''
+            }
             const hours = Math.floor(elapsedTime / (1000 * 60 * 60));
             const minutes = Math.floor((elapsedTime % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((elapsedTime % (1000 * 60)) / 1000);
@@ -135,6 +141,28 @@
             return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
 
+        function sortTimeRecordsByLatestToOldest() {
+            const recordWNoStopTime = timeTrackingRecords.filter(function(record) {
+                return !record.stopTime
+            })[0]
+
+            let records = [];
+            if (recordWNoStopTime) {
+                records.push(recordWNoStopTime)
+            }
+
+            timeTrackingRecords.sort((a,b) => {
+                if (a.stopTime < b.stopTime) { return 1 }
+                else if (a.stopTime > b.stopTime) { return -1 }
+                else return 0
+            })
+
+            let recordsWStopTime = timeTrackingRecords.filter(function(record) {
+                return record.stopTime
+            })
+            
+            return [...records, ...recordsWStopTime ] 
+        }
         function displayTimeTrackerRecords() {
             const timeTrackerDisplayArea = document.getElementById('timeTrackerDisplayArea');
             timeTrackerDisplayArea.innerHTML = ''; // Clear previous entries
@@ -152,38 +180,16 @@
                 </tr>`;
             timeTrackerDisplayArea.appendChild(table);
 
-            function sortTimeRecordsByLatestToOldest() {
-                const recordWNoStopTime = timeTrackingRecords.filter(function(record) {
-                    return !record.stopTime
-                })[0]
-    
-                let records = [];
-                if (recordWNoStopTime) {
-                    records.push(recordWNoStopTime)
-                }
-
-                timeTrackingRecords.sort((a,b) => {
-                    if (a.stopTime < b.stopTime) { return 1 }
-                    else if (a.stopTime > b.stopTime) { return -1 }
-                    else return 0
-                })
-
-                let recordsWStopTime = timeTrackingRecords.filter(function(record) {
-                    return record.stopTime
-                })
-                
-                return [...records, ...recordsWStopTime ] 
-            }
-
-            records = sortTimeRecordsByLatestToOldest()
-            timeTrackingRecords = records
-
-            records.forEach(function(record) {
+            timeTrackingRecords.forEach(function(record) {
                 const row = table.insertRow();
 
                 const startTime = new Date(record.startTime);
-                const stopTime = new Date(record.stopTime);
-                const elapsedTime = new Date(stopTime - startTime);
+                let stopTime = null;
+                let elapsedTime = null
+                if (record.stopTime) {
+                    stopTime = new Date(record.stopTime);
+                    elapsedTime = new Date(stopTime - startTime);
+                }
 
                 const timeRange = `${formatTime(startTime)} - ${formatTime(stopTime)}`;
                 const totalElapsedTime = formatElapsedTime(elapsedTime);
@@ -219,8 +225,9 @@
                     }
                     cursor.continue();
                 } else {
-                    displayTimeTrackerRecords();
+                    timeTrackingRecords = sortTimeRecordsByLatestToOldest()
                     checkIfLatestRecordIsNotFinished();
+                    displayTimeTrackerRecords();
                 }
             };
 
@@ -368,6 +375,14 @@
             };
         }
 
+        function removeRecordFromArrayByKey(db, key) {
+            if (db === timeRecordsDB) {
+                const index = timeTrackingRecords.findIndex(function(el) {
+                    return el.key === key
+                })
+                timeTrackingRecords.splice(index, 1)
+            }
+        }
         function deleteRecord(recordDb, key) {
             const transaction = db.transaction([recordDb], "readwrite");
             const store = transaction.objectStore(recordDb);
@@ -376,6 +391,7 @@
             transaction.oncomplete = function(e) {
                 console.log("Record deleted successfully");
                 // Refresh the displayed records
+                removeRecordFromArrayByKey(recordDb, key)
                 refreshDisplayAccordingToDb(recordDb);
             };
 
@@ -436,6 +452,8 @@
         function checkIfLatestRecordIsNotFinished() {
             const latestRecord = timeTrackingRecords[0]
             if (!latestRecord.stopTime) {
+                // remove latestRecord from state
+                timeTrackingRecords.splice(0,1)
                 currentTimeRecord = latestRecord
                 currentStartTime = new Date(latestRecord.startTime)
                 if (latestRecord.tags.includes('pomodoro')) {
