@@ -24,7 +24,7 @@
         <button id="startButton" onclick="startTimer()">Start</button>
         <button id="startPomodoroTimerButton" onclick="startTimer(defaultPomodoroRecord, startPomodoroTimer)">Start Pomodoro</button>
         <button id="startBreakTimerButton" onclick="startTimer(defaultPomodoroBreakRecord, startBreakTimer)">Start Break</button>
-        <div id="startTimeDisplay"></div>
+        <button id="updateTimeButton" onclick="updateTimeRecord()">Update</button>
         <button id="stopButton" onclick="stopTimer()">Stop</button>
         <button id="addTimeButton" onclick="addTimeRecord()">Save</button>
         <div id="timerDisplay">00:00:00</div>
@@ -449,6 +449,24 @@
             localStorage.setItem('pomodoroConfig', JSON.stringify(config))
         }
 
+        function setValuesBasedOnTimeRecord(record) {
+            document.getElementById('timeTrackerDescriptionInput').value = record.description;
+            document.getElementById('timeTrackerCategorySelect').value = record.category;
+
+            record.tags.forEach(tag => {
+                let option = Array.from(document.getElementById('timeTrackerTagsSelect').options).find(option => option.value === tag);
+                if (option) option.selected = true;
+            });
+
+            function toLocalDateTimeStringUsingLocale(date) {
+                // Format the date to "YYYY-MM-DDTHH:mm"
+                const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+                let formattedDate = date.toLocaleString('sv-SE', options); // 'sv-SE' helps to ensure the use of ISO-like format (YYYY-MM-DDTHH:mm)
+                return formattedDate.replace(' ', 'T'); // Ensure the format matches "YYYY-MM-DDTHH:mm"
+            }
+            const localTime = toLocalDateTimeStringUsingLocale(new Date(record.startTime));
+            document.getElementById('timeTrackerStartTimeInput').value = localTime;
+        }
         function checkIfLatestRecordIsNotFinished() {
             const latestRecord = timeTrackingRecords[0]
             if (!latestRecord.stopTime) {
@@ -461,7 +479,8 @@
                 } else if (latestRecord.tags.includes('pomodoro-break')) {
                     completePomodoroOrBreakTimeIfPastDuration(latestRecord, 'pomodoro-break')
                 } else {
-                    startTimer(latestRecord, undefined, false)
+                    startTimer(latestRecord, undefined, false);
+                    setValuesBasedOnTimeRecord(latestRecord);
                 }
             }
         }
@@ -569,13 +588,13 @@
             tags,
             startTime,
             stopTime
-        }) {
-            if (currentTimeRecord) {
+        }, noCurrentTimeRecord = false) {
+            if (currentTimeRecord && !noCurrentTimeRecord) {
                 if (stopTime) {
                     currentTimeRecord.stopTime = stopTime.toISOString()
                 }
                 return currentTimeRecord;
-            } 
+            }
 
             let taskDescription = document.getElementById('timeTrackerDescriptionInput').value;
             let category = document.getElementById('timeTrackerCategorySelect').value;
@@ -619,6 +638,7 @@
             document.getElementById('startPomodoroTimerButton').style.display = 'inline';
             document.getElementById('startBreakTimerButton').style.display = 'inline';
             document.getElementById('stopButton').style.display = 'none';
+            document.getElementById('updateTimeButton').style.display = 'none';
             document.getElementById('addTimeButton').style.display = 'inline';
             document.getElementById('timeTrackerStopTimeInput').style.display = 'inline';
         }
@@ -640,6 +660,7 @@
                 document.getElementById('startPomodoroTimerButton').style.display = 'none';
                 document.getElementById('startBreakTimerButton').style.display = 'none';
                 document.getElementById('stopButton').style.display = 'inline';
+                document.getElementById('updateTimeButton').style.display = 'inline';
                 document.getElementById('addTimeButton').style.display = 'none';
                 document.getElementById('timeTrackerStopTimeInput').style.display = 'none';
 
@@ -661,7 +682,7 @@
         const defaultPomodoroRecord = { tags: ['pomodoro'] }
         function startPomodoroTimer() {
             document.getElementById('timerDisplay').style.display = 'none';
-            const timerMin = document.getElementById('pomodoroTime').value;
+            const timerMin = pomodoroConfig.pomodoroTime;
             const timerMs = timerMin * 60 * 1000
             const curretStartTimeAndPomodoroTime = currentStartTime.getTime() + timerMs // Set start time to 25 minutes from now
             updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroTime) // calls the function first to show display
@@ -679,7 +700,7 @@
         function startBreakTimer() {
             document.getElementById('pomodoroTimerDisplay').style.display = 'block';
             document.getElementById('timerDisplay').style.display = 'none';
-            const timerMin = document.getElementById('breakTime').value;
+            const timerMin = pomodoroConfig.breakTime;
             const timerMs = timerMin * 60 * 1000
             const curretStartTimeAndPomodoroBreakTime = currentStartTime.getTime() + timerMs // Set start time to 25 minutes from now
             updateTimeTrackerDisplayDecrement(curretStartTimeAndPomodoroBreakTime) // calls the function first to show display
@@ -721,7 +742,17 @@
             resetTimeTrackerItems();
             await fetchTimeTrackerRecords();
             displayTimeTrackerRecords();
+        }
 
+        async function updateTimeRecord() {
+            const newStartTime = new Date(document.getElementById('timeTrackerStartTimeInput').value)
+            const newRecord = getTimeRecord({ startTime: newStartTime }, true);
+            newRecord.key = currentTimeRecord.key
+            if (JSON.stringify(newRecord) === JSON.stringify(currentTimeRecord)) {
+                return
+            }
+
+            saveTimeRecord(newRecord, true)
         }
 
         function setToLastStopTimeToday() {
