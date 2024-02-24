@@ -19,12 +19,17 @@ Done
     - add a display to show start time ✅ 2024-02-09
         - add a button to change the start time value to previous log value for the day ✅ 2024-02-09
     - allow user to modify the description/category/tags while it is being run ✅ 2024-02-22
+    - figure out a way to send notifications for when a pomodoro finishes
+        - add a config to enable notifications for this ✅ 2024-02-23
+    - send a notification for when a break finishes
+        - add a config to enable notifications for this ✅ 2024-02-23
 
 - 2024-02-04
     - when clicking pomodoro or break, instead of making the display show the time from 00:00:00 and it goes up, make it start from the pomodoro/break time and go down ✅ 2024-02-05
     - reverse sort the time tracking records ✅ 2024-02-09
     - save the pomodoro and break time config in localstorage ✅ 2024-02-12
     - check the latest record, and if there is no end time, start updating the display automatically ✅ 2024-02-13
+    - make the website a progressive web app ✅ 2024-02-23
 
 - 2024-02-05
     - in time tracking, if stopTime is undefined, make it show '' ✅ 2024-02-14
@@ -38,27 +43,15 @@ Done
 
 - 2024-02-22
     - fix bug where the start time doesn't display correct when there's a record currently running ✅ 2024-02-22
+    - Update the "set to last stop time today, to actually be for today ✅ 2024-02-23
+        - if there's no previous record, don't show the button ✅ 2024-02-23
 
 Working on
-- make the website a progressive web app
-- Update the "set to last stop time today, to actually be for today
-    - if there's no previous record, don't show the button
-- figure out a way to send notifications for when a pomodoro finishes
-    - add a config to enable notifications for this
-- send a notification for when a break finishes
-    - add a config to enable notifications for this
 - add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc.
 
 Not done
-- 2024-02-01
-    - figure out a way to send notifications for when a pomodoro finishes
-        - add a config to enable notifications for this
-    - send a notification for when a break finishes
-        - add a config to enable notifications for this
-
 - 2024-02-04
     - make the cells editable able to choose between different inputs
-    - make the website a progressive web app
 
 - 2024-02-05
     - there's a bug when you click on an editable cell, and you try clicking into it to go to another position where it triggers again and makes it a regular cell again
@@ -73,7 +66,5 @@ Not done
     - add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc.
 
 - 2024-02-22
-    - Update the "set to last stop time today, to actually be for today
-        - if there's no previous record, don't show the button
     - make into a desktop app using Wails (figure out Wails and Go)
     - add an action log to the page to log all the actions taken place, kind of like an audit log

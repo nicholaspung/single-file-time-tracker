@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Time Tracker</title>
+    <link rel="manifest" href="/manifest.json">
     <style>
     </style>
 </head>
@@ -35,10 +36,12 @@
         <label for="pomodoroTime">Pomodoro time: </label>
         <input type="number" id="pomodoroTime" value="25" min="1"> min
         <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('pomodoro')">Save pomodoro time config</button>
+        <input type="checkbox" id="pomodoroAlert" onclick="setPomodoroConfigLocalStorage('pomodoro')"/>
         <br>
         <label for="breakTime">Break time: </label>
         <input type="number" id="breakTime" value="5" min="1"> min
         <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('break')">Save break time config</button>
+        <input type="checkbox" id="breakAlert" onclick="setPomodoroConfigLocalStorage('break')"/>
     </div>
     <h4>Time tracking records</h4>
     <div id="timeTrackerDisplayArea"></div>
@@ -227,6 +230,7 @@
                 } else {
                     timeTrackingRecords = sortTimeRecordsByLatestToOldest()
                     checkIfLatestRecordIsNotFinished();
+                    displaySetToLastStopTimeTodayButton();
                     displayTimeTrackerRecords();
                 }
             };
@@ -381,6 +385,7 @@
                     return el.key === key
                 })
                 timeTrackingRecords.splice(index, 1)
+                displaySetToLastStopTimeTodayButton();
             }
         }
         function deleteRecord(recordDb, key) {
@@ -428,10 +433,14 @@
                 pomodoroConfig = fetchedPomodoroConfig ? JSON.parse(fetchedPomodoroConfig) : {};
                 document.getElementById('pomodoroTime').value = pomodoroConfig.pomodoroTime
                 document.getElementById('breakTime').value = pomodoroConfig.breakTime
+                document.getElementById('pomodoroAlert').checked = pomodoroConfig.pomodoroAlert
+                document.getElementById('breakAlert').checked = pomodoroConfig.breakAlert
             } else {
                 localStorage.setItem('pomodoroConfig', JSON.stringify({
                     pomodoroTime: 25,
-                    breakTime: 5
+                    pomodoroAlert: true,
+                    breakTime: 5,
+                    breakAlert: true
                 }))
             }
         }
@@ -441,9 +450,13 @@
             if (type === 'pomodoro') {
                 const pomodoroValue = document.getElementById('pomodoroTime').value
                 config.pomodoroTime = pomodoroValue
+                const pomodoroAlertValue = document.getElementById('pomodoroAlert').checked
+                config.pomodoroAlert = pomodoroAlertValue
             } else {
                 const breakValue = document.getElementById('breakTime').value
                 config.breakTime = breakValue
+                const breakAlertValue = document.getElementById('breakAlert').checked
+                config.breakAlert = breakAlertValue
             }
             pomodoroConfig = config
             localStorage.setItem('pomodoroConfig', JSON.stringify(config))
@@ -484,6 +497,16 @@
                 }
             }
         }
+        function displaySetToLastStopTimeTodayButton() {
+            const latestRecord = timeTrackingRecords[0]
+            if (latestRecord.stopTime) {
+                const lastStopTime = new Date(latestRecord.stopTime)
+                const today = new Date()
+                if (lastStopTime.getMonth() !== today.getMonth() || lastStopTime.getDate() !== today.getDate()) {
+                    document.getElementById('setToLastStopTimeTodayButton').style.display = "none"
+                }
+            }
+        }
 
         async function completePomodoroOrBreakTimeIfPastDuration(record, type) {
             const now = new Date()
@@ -513,7 +536,12 @@
         document.addEventListener('DOMContentLoaded', async function() {
             setDefaultDateForStartTimeAndStopTimeInput()
             fetchPomodoroConfigLocalStorage()
-            openDatabase([displayTrackerCategory, displayTrackerTag, fetchTimeTrackerRecords, fetchPomodoroConfigLocalStorage]);
+            openDatabase([
+                displayTrackerCategory, 
+                displayTrackerTag, 
+                fetchTimeTrackerRecords, 
+                fetchPomodoroConfigLocalStorage,
+            ]);
         });
     </script>
     <script>
@@ -641,6 +669,7 @@
             document.getElementById('updateTimeButton').style.display = 'none';
             document.getElementById('addTimeButton').style.display = 'inline';
             document.getElementById('timeTrackerStopTimeInput').style.display = 'inline';
+            document.getElementById('setToLastStopTimeTodayButton').style.display = "inline"
         }
 
         function startTimer(defaultRecord, callback, autoSave = true) {
@@ -726,9 +755,9 @@
             const record = getTimeRecord({ stopTime: defaultStopTime ? defaultStopTime : stopTime })
             await saveTimeRecord(record, true);
 
+            await fetchTimeTrackerRecords();
             resetCurrentTimeValues();
             resetTimeTrackerItems();
-            await fetchTimeTrackerRecords();
             displayTimeTrackerRecords();
         }
 
@@ -738,9 +767,9 @@
             const record = getTimeRecord({ startTime, stopTime })
             await saveTimeRecord(record)
 
+            await fetchTimeTrackerRecords();
             resetCurrentTimeValues();
             resetTimeTrackerItems();
-            await fetchTimeTrackerRecords();
             displayTimeTrackerRecords();
         }
 
@@ -876,6 +905,19 @@
             transaction.onerror = function(e) {
                 console.error("Error creating tracker tag: ", e);
             };
+        }
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/service-worker.js').then(function(registration) {
+            // Registration was successful
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            }, function(err) {
+            // registration failed :(
+            console.log('ServiceWorker registration failed: ', err);
+            });
+        });
         }
     </script>
 </body>
