@@ -5,6 +5,14 @@
     <title>Time Tracker</title>
     <link rel="manifest" href="/manifest.json">
     <style>
+        .toast {
+            background-color: #333;
+            color: white;
+            padding: 16px;
+            margin: 16px;
+            opacity: 0.9;
+            transition: bottom 0.5s, opacity 0.5s;
+        }
     </style>
 </head>
 <body>
@@ -25,25 +33,35 @@
         <button id="startButton" onclick="startTimer()">Start</button>
         <button id="startPomodoroTimerButton" onclick="startTimer(defaultPomodoroRecord, startPomodoroTimer)">Start Pomodoro</button>
         <button id="startBreakTimerButton" onclick="startTimer(defaultPomodoroBreakRecord, startBreakTimer)">Start Break</button>
-        <button id="updateTimeButton" onclick="updateTimeRecord()">Update</button>
-        <button id="stopButton" onclick="stopTimer()">Stop</button>
+        <button id="updateTimeButton" style="display: none;" onclick="updateTimeRecord()">Update</button>
+        <button id="stopButton" style="display: none;" onclick="stopTimer()">Stop</button>
         <button id="addTimeButton" onclick="addTimeRecord()">Save</button>
         <div id="timerDisplay">00:00:00</div>
         <div id="pomodoroTimerDisplay"></div>
     </div>
     <div>
         <h4>Pomodoro settings</h4>
-        <label for="pomodoroTime">Pomodoro time: </label>
-        <input type="number" id="pomodoroTime" value="25" min="1"> min
-        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('pomodoro')">Save pomodoro time config</button>
-        <input type="checkbox" id="pomodoroAlert" onclick="setPomodoroConfigLocalStorage('pomodoro')"/>
+        <div>
+            <label for="pomodoroTime">Pomodoro time: </label>
+            <input type="number" id="pomodoroTime" value="25" min="1"> min
+        </div>
+        <div>
+            <label for="pomodoroAlert">Show pomodoro alert</label>
+            <input type="checkbox" id="pomodoroAlert" />
+        </div>
+        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('pomodoro')">Save pomodoro config</button>
         <br>
-        <label for="breakTime">Break time: </label>
-        <input type="number" id="breakTime" value="5" min="1"> min
-        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('break')">Save break time config</button>
-        <input type="checkbox" id="breakAlert" onclick="setPomodoroConfigLocalStorage('break')"/>
+        <div>
+            <label for="breakTime">Break time: </label>
+            <input type="number" id="breakTime" value="5" min="1"> min
+        </div>
+        <div>
+            <label for="breakAlert">Show break alert</label>
+            <input type="checkbox" id="breakAlert" />
+        </div>
+        <button id="savePomodoroButton" onclick="setPomodoroConfigLocalStorage('break')">Save break config</button>
     </div>
-    <h4>Time tracking records</h4>
+    <h4>Tracked time records</h4>
     <div id="timeTrackerDisplayArea"></div>
     <h4>Categories for time tracking</h4>
     <div id="trackerCategory">
@@ -57,6 +75,20 @@
         <button  onclick="createTrackerTag()">Save</button>
     </div>
     <div id="trackerTagDisplayArea"></div>
+    <div id="toastContainer" style="position: fixed; bottom: 0; right: 0;"></div>
+    <!-- Hotkey Display Modal -->
+    <div id="hotkeyModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+        <div style="background-color:white; margin:10% auto; padding:20px; width:80%;">
+        <h2>Hotkeys</h2>
+        <p><strong>Shift + 1:</strong> Focus track time input</p>
+        <p><strong>Shift + 2:</strong> Focus pomodoro settings</p>
+        <p><strong>Shift + 3:</strong> Focus category input</p>
+        <p><strong>Shift + 4:</strong> Focus tag input</p>
+        <p><strong>/:</strong> Open hotkey tips</p>
+        <p><strong>Esc:</strong> Close hotkey tips</p>
+        <button onclick="toggleHotkeyModal()">Close</button>
+        </div>
+    </div>
     <script>
         let db;
         // DB is NoSQL, but I'd like it to function like a SQL database, with "JOINS"
@@ -396,6 +428,7 @@
             transaction.oncomplete = function(e) {
                 console.log("Record deleted successfully");
                 // Refresh the displayed records
+                showToast(`Record deleted from ${recordDb}`)
                 removeRecordFromArrayByKey(recordDb, key)
                 refreshDisplayAccordingToDb(recordDb);
             };
@@ -452,11 +485,13 @@
                 config.pomodoroTime = pomodoroValue
                 const pomodoroAlertValue = document.getElementById('pomodoroAlert').checked
                 config.pomodoroAlert = pomodoroAlertValue
+                showToast('Pomodoro config saved')
             } else {
                 const breakValue = document.getElementById('breakTime').value
                 config.breakTime = breakValue
                 const breakAlertValue = document.getElementById('breakAlert').checked
                 config.breakAlert = breakAlertValue
+                showToast('Break config saved')
             }
             pomodoroConfig = config
             localStorage.setItem('pomodoroConfig', JSON.stringify(config))
@@ -606,7 +641,63 @@
                 }
             });
         }
+    </script>
+    <script>
+        function showToast(message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.classList.add('toast');
+            toast.textContent = message;
 
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => container.removeChild(toast), 500); // Ensure transition can play before removal
+            }, 2000);
+        }
+        function toggleHotkeyModal() {
+            var modal = document.getElementById('hotkeyModal');
+            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('keydown', function(event) {
+            const hotkeyActions = {
+                '/': function() {
+                    toggleHotkeyModal()
+                },
+                '!': function() {
+                    if (event.shiftKey) {
+                        document.getElementById('timeTrackerDescriptionInput').focus()
+                    }
+                },
+                '@': function() {
+                    if (event.shiftKey) {
+                        document.getElementById('pomodoroTime').focus()
+                    }
+                },
+                '#': function() {
+                    if (event.shiftKey) {
+                        document.getElementById('trackerCategoryCategoryInput').focus()
+                    }
+                },
+                '$': function() {
+                    if (event.shiftKey) {
+                        document.getElementById('trackerTagTagInput').focus()
+                    }
+                },
+                'Escape': function () {
+                    const hotkeyModal = document.getElementById('hotkeyModal');
+                    if (hotkeyModal.style.display === 'block') {
+                        toggleHotkeyModal();
+                    }
+                }
+            }
+            if (hotkeyActions[event.key]) {
+                event.preventDefault();
+                hotkeyActions[event.key]();
+            }
+        });
     </script>
     <script>
         /* TIMER FUNCTIONS */
@@ -701,6 +792,8 @@
                     record = getTimeRecord({ startTime })
                 }
 
+                showToast('Timer stated')
+
                 if (autoSave) {
                     return saveTimeRecord(record, true)
                 }
@@ -723,6 +816,7 @@
                 alert('Pomodoro finished!');
                 startBreakTimer();
             }, timerMs)
+            showToast('Pomodoro started')
         }
 
         const defaultPomodoroBreakRecord = { description: 'Break', tags: ['pomodoro-break'] }
@@ -740,6 +834,7 @@
                 alert('Break finished!');
                 stopTimer();
             }, timerMs)
+            showToast('Break started')
         }
 
         async function stopTimer(defaultStopTime) {
@@ -759,6 +854,8 @@
             resetCurrentTimeValues();
             resetTimeTrackerItems();
             displayTimeTrackerRecords();
+
+            showToast('Timer stopped')
         }
 
         async function addTimeRecord() {
@@ -782,6 +879,7 @@
             }
 
             saveTimeRecord(newRecord, true)
+            showToast('Timer information updated')
         }
 
         function setToLastStopTimeToday() {
@@ -808,6 +906,7 @@
             const hours = remaining.getUTCHours().toString().padStart(2, '0');
             const minutes = remaining.getMinutes().toString().padStart(2, '0');
             const seconds = remaining.getSeconds().toString().padStart(2, '0');
+            document.getElementById('pomodoroTimerDisplay').style.display = 'block';
             document.getElementById('pomodoroTimerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
         }
 
@@ -871,6 +970,7 @@
 
             request.onsuccess = function(e) {
                 console.log("Tracker category created with key:", e.target.result);
+                showToast('Category created')
                 resetCurrentTrackerCategoryValue();
                 displayTrackerCategory();
             };
@@ -894,6 +994,7 @@
 
             request.onsuccess = function(e) {
                 console.log("Tracker tag created with key:", e.target.result);
+                showToast('Tag created')
                 resetCurrentTrackerTagValue();
                 displayTrackerTag();
             };

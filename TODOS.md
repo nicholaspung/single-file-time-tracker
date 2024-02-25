@@ -40,6 +40,8 @@ Done
 
 - 2024-02-12
     - for pomodoro config, move the values to be read from the configs, and not the elements ✅ 2024-02-22
+    - add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc. ✅ 2024-02-24
+    - add hotkeys to be able to focus on specific inputs and tables to navigate everything through the keyboard ✅ 2024-02-24
 
 - 2024-02-22
     - fix bug where the start time doesn't display correct when there's a record currently running ✅ 2024-02-22
@@ -47,7 +49,7 @@ Done
         - if there's no previous record, don't show the button ✅ 2024-02-23
 
 Working on
-- add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc.
+- add hotkeys to be able to focus on specific inputs and tables to navigate everything through the keyboard
 
 Not done
 - 2024-02-04
@@ -62,9 +64,10 @@ Not done
 - 2024-02-12
     - create a button that is able to check the position of the record relative to the other records, and be able to set the time to the previous/latest start/stop time
     - make into a desktop app using Tauri (figure out Tauri and Rust)
-    - add hotkeys to be able to focus on specific inputs and tables to navigate everything through the keyboard
-    - add a toast or some kind of notification for when an action is done, i.e. timer has started, pomodoro time config has been updated, etc.
 
 - 2024-02-22
     - make into a desktop app using Wails (figure out Wails and Go)
     - add an action log to the page to log all the actions taken place, kind of like an audit log
+
+- 2024-02-24
+    - Add a "play button" next to a log that automatically fills out the start timer inputs
