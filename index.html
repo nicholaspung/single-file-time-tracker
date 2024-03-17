@@ -29,6 +29,26 @@
             <button id="setToLastStopTimeTodayButton" onclick="setToLastStopTimeToday()">Set to last stop time today</button>
         </div>
         <input type="datetime-local" id="timeTrackerStopTimeInput" />
+        <div id="timeRecordsModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+            <div style="background-color:white; margin:10% auto; padding:20px; width:80%;">
+                <div>
+                    <h4>Edit time record</h4>
+                    <input type="text" id="editTimeTrackerDescriptionInput" placeholder="Enter task description" />
+                    <select id="editTimeTrackerCategorySelect">
+                        <option value="" selected>Select category</option>
+                    </select>
+                    <select id="editTimeTrackerTagsSelect" multiple>
+                    </select>
+                    <div>
+                        <input type="datetime-local" id="editTimeTrackerStartTimeInput" />
+                        <button id="setToLastStopTimeTodayButton" onclick="setToLastStopTimeToday()">Set to last stop time today</button>
+                    </div>
+                    <input type="datetime-local" id="editTimeTrackerStopTimeInput" />
+                </div>
+                <br />
+                <button id="timeRecordsCloseButton" onclick="toggleModalAndDeleteClassName('timeRecordsModal')">Close</button>
+            </div>
+        </div>
         <br />
         <button id="startButton" onclick="startTimer()">Start</button>
         <button id="startPomodoroTimerButton" onclick="startTimer(defaultPomodoroRecord, startPomodoroTimer)">Start Pomodoro</button>
@@ -69,24 +89,44 @@
         <button onclick="createTrackerCategory()">Save</button>
     </div>
     <div id="trackerCategoryDisplayArea"></div>
+    <div id="trackerCategoryModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+        <div style="background-color:white; margin:10% auto; padding:20px; width:80%;">
+            <div>
+                <h4>Edit category</h4>
+                <input type="text" id="editTrackerCategoryCategoryInput" placeholder="Enter category" />
+            </div>
+            <br />
+            <button id="trackerCategoryCloseButton" onclick="toggleModalAndDeleteClassName('trackerCategoryModal')">Close</button>
+        </div>
+    </div>
     <h4>Tags for time tracking</h4>
     <div id="trackerTag">
         <input type="text" id="trackerTagTagInput" placeholder="Enter tag" />
         <button  onclick="createTrackerTag()">Save</button>
     </div>
     <div id="trackerTagDisplayArea"></div>
+    <div id="trackerTagModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
+        <div style="background-color:white; margin:10% auto; padding:20px; width:80%;">
+            <div>
+                <h4>Edit tag</h4>
+                <input type="text" id="editTrackerTagTagInput" placeholder="Enter tag" />
+            </div>
+            <br />
+            <button id="trackerTagCloseButton" onclick="toggleModalAndDeleteClassName('trackerTagModal')">Close</button>
+        </div>
+    </div>
     <div id="toastContainer" style="position: fixed; bottom: 0; right: 0;"></div>
     <!-- Hotkey Display Modal -->
     <div id="hotkeyModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5);">
         <div style="background-color:white; margin:10% auto; padding:20px; width:80%;">
-        <h2>Hotkeys</h2>
-        <p><strong>Shift + 1:</strong> Focus track time input</p>
-        <p><strong>Shift + 2:</strong> Focus pomodoro settings</p>
-        <p><strong>Shift + 3:</strong> Focus category input</p>
-        <p><strong>Shift + 4:</strong> Focus tag input</p>
-        <p><strong>/:</strong> Open hotkey tips</p>
-        <p><strong>Esc:</strong> Close hotkey tips</p>
-        <button onclick="toggleHotkeyModal()">Close</button>
+            <h2>Hotkeys</h2>
+            <p><strong>Shift + 1:</strong> Focus track time input</p>
+            <p><strong>Shift + 2:</strong> Focus pomodoro settings</p>
+            <p><strong>Shift + 3:</strong> Focus category input</p>
+            <p><strong>Shift + 4:</strong> Focus tag input</p>
+            <p><strong>/:</strong> Open hotkey tips</p>
+            <p><strong>Esc:</strong> Close hotkey tips</p>
+            <button onclick="toggleModal('hotkeyModal')">Close</button>
         </div>
     </div>
     <script>
@@ -198,6 +238,107 @@
             
             return [...records, ...recordsWStopTime ] 
         }
+
+        function removeDuplicatesAndReplaceUpdatedRecord() {
+            const keys = {}
+            return timeTrackingRecords.reduce(function(acc, curr, index) {
+                if (!keys[curr.key]) {
+                    keys[curr.key] = { index, value: curr }
+                    acc.push(curr)
+                } else {
+                    if (JSON.stringify(curr) !== JSON.stringify(keys[curr.key].value)) {
+                        console.log(keys[curr.key]);
+                        acc[keys[curr.key].index] = curr
+                    }
+                }
+                return acc
+            }, [])
+        }
+        
+        function getEditTimeTrackingRecordsInputs() {
+            let taskDescription = document.getElementById('editTimeTrackerDescriptionInput').value;
+            let category = document.getElementById('editTimeTrackerCategorySelect').value;
+            let tagsSelect = getSelectedValues('editTimeTrackerTagsSelect');
+            let startTime = new Date(document.getElementById('editTimeTrackerStartTimeInput').value)
+            let stopTime = new Date(document.getElementById('editTimeTrackerStopTimeInput').value)
+
+            return {
+                description: taskDescription,
+                category,
+                tags: tagsSelect,
+                startTime,
+                stopTime
+            }
+        }
+        function openEditTimeRecordsModalWData(recordJsonString, modalId) {
+            const record = JSON.parse(recordJsonString.replaceAll('|', '"'))
+            setValuesBasedOnTimeRecord(record, {
+                descriptionInputId: 'editTimeTrackerDescriptionInput',
+                categorySelectId: 'editTimeTrackerCategorySelect',
+                tagsSelectId: 'editTimeTrackerTagsSelect',
+                startTimeInput: 'editTimeTrackerStartTimeInput',
+                stopTimeInput: 'editTimeTrackerStopTimeInput'
+            })
+            
+            const updateButton = document.createElement("button");
+            updateButton.textContent = "Update";
+            updateButton.className = "deleteMeOnUpdateOrClose"
+            updateButton.onclick = function() {
+                const updatedRecord = getEditTimeTrackingRecordsInputs()
+                editRecordField(timeRecordsDB, record.key, updatedRecord)
+                toggleModalAndDeleteClassName(modalId)
+            }
+            const referenceElement = document.getElementById('timeRecordsCloseButton');
+            referenceElement.parentNode.insertBefore(updateButton, referenceElement);
+
+            toggleModal(modalId)
+        }
+        function openEditTrackerCategoryModalWData(recordJsonString, modalId, key) {
+            const record = JSON.parse(recordJsonString.replaceAll('|', '"'))
+            document.querySelector('#editTrackerCategoryCategoryInput').value = record.category
+            
+            const updateButton = document.createElement("button");
+            updateButton.textContent = "Update";
+            updateButton.className = "deleteMeOnUpdateOrClose"
+            updateButton.onclick = function() {
+                const updatedCategory = document.querySelector('#editTrackerCategoryCategoryInput').value
+                editRecordField(categoryRecordsDB, key, { category: updatedCategory})
+                // function to be made
+                // map through timetrackingrecords, check if any category === record
+                // if true, update timetracking record with new category, else do nothing
+                // call fetch time tracking record
+                toggleModalAndDeleteClassName(modalId)
+            }
+            const referenceElement = document.getElementById('trackerCategoryCloseButton');
+            referenceElement.parentNode.insertBefore(updateButton, referenceElement);
+
+            toggleModal(modalId)
+        }
+        function openEditTrackerTagModalWData(recordJsonString, modalId, key) {
+            const record = JSON.parse(recordJsonString.replaceAll('|', '"'))
+            document.querySelector('#editTrackerTagTagInput').value = record.tag
+            
+            const updateButton = document.createElement("button");
+            updateButton.textContent = "Update";
+            updateButton.className = "deleteMeOnUpdateOrClose"
+            updateButton.onclick = function() {
+                const updatedTag = document.querySelector('#editTrackerTagTagInput').value
+                editRecordField(tagsRecordsDB, key, { tag: updatedTag})
+                toggleModalAndDeleteClassName(modalId)
+            }
+            const referenceElement = document.getElementById('trackerTagCloseButton');
+            referenceElement.parentNode.insertBefore(updateButton, referenceElement);
+
+            toggleModal(modalId)
+        }
+        function generateActionCells(row, db, key, record, modalId) {
+            // Cell for Edit and Delete buttons
+            const cell = row.insertCell();
+            cell.innerHTML = `
+                <button onclick="openEdit${capitalizeFirstLetter(modalId)}WData('${JSON.stringify(record).replaceAll('"', "|")}', '${modalId}', ${key})">Edit</button>
+                <button onclick="deleteRecord('${db}', ${key})">Delete</button>
+            `;
+        }
         function displayTimeTrackerRecords() {
             const timeTrackerDisplayArea = document.getElementById('timeTrackerDisplayArea');
             timeTrackerDisplayArea.innerHTML = ''; // Clear previous entries
@@ -229,19 +370,17 @@
                 const timeRange = `${formatTime(startTime)} - ${formatTime(stopTime)}`;
                 const totalElapsedTime = formatElapsedTime(elapsedTime);
 
-                createEditableCell(timeRecordsDB, row, record.description, 'editable', record.key, record, 'description');
-                createEditableCell(timeRecordsDB, row, record.category, 'editable', record.key, record, 'category');
+                createCell(timeRecordsDB, row, record.description);
+                createCell(timeRecordsDB, row, record.category);
                 const tags = record.tags && record.tags.length > 0 ? record.tags.join(', ') : '';
-                createEditableCell(timeRecordsDB, row, tags, 'editable', record.key, record, 'tags');
-                createCombinedEditableCell(timeRecordsDB, row, 
+                createCell(timeRecordsDB, row, tags);
+                createCombinedCell(timeRecordsDB, row, 
                     [{ textContent: formatTime(startTime), field: 'startTime'}, 
                         { textContent: formatTime(stopTime), field: 'stopTime'}], 
-                    'editable', record.key, record, ' - ')
-                createEditableCell(timeRecordsDB, row, totalElapsedTime);
+                    ' - ')
+                createCell(timeRecordsDB, row, totalElapsedTime);
 
-                // Cell for Edit and Delete buttons
-                const actionCell = row.insertCell();
-                actionCell.innerHTML = `<button onclick="deleteRecord('${timeRecordsDB}', ${record.key})">Delete</button>`;
+                generateActionCells(row, timeRecordsDB, record.key, record, 'timeRecordsModal')
             })
         }
         function fetchTimeTrackerRecords() {
@@ -253,14 +392,11 @@
                 const cursor = event.target.result;
                 if (cursor) {
                     const record = cursor.value;
-                    if (!timeTrackingRecords.some(function(record) {
-                        return record.key === cursor.key
-                    })) {
-                        timeTrackingRecords.push({ ...record, key: cursor.key })
-                    }
+                    timeTrackingRecords.push({ ...record, key: cursor.key })
                     cursor.continue();
                 } else {
                     timeTrackingRecords = sortTimeRecordsByLatestToOldest()
+                    timeTrackingRecords = removeDuplicatesAndReplaceUpdatedRecord()
                     checkIfLatestRecordIsNotFinished();
                     displaySetToLastStopTimeTodayButton();
                     displayTimeTrackerRecords();
@@ -296,15 +432,13 @@
                     const record = cursor.value;
                     const row = table.insertRow();
 
-                    createEditableCell(categoryRecordsDB, row, record.category, 'editable', cursor.key, record, 'category');
+                    createCell(categoryRecordsDB, row, record.category);
 
-                    // Cell for Edit and Delete buttons
-                    const actionCell = row.insertCell();
-                    // adding quotes because cursor.key is a string and value shows without quotes
-                    actionCell.innerHTML = `<button onclick="deleteRecord('${categoryRecordsDB}', ${cursor.key})">Delete</button>`;
+                    generateActionCells(row, categoryRecordsDB, cursor.key, cursor.value, 'trackerCategoryModal')
 
                     // also adds the category values to select
                     addOptionToSelect('timeTrackerCategorySelect', cursor.value.category)
+                    addOptionToSelect('editTimeTrackerCategorySelect', cursor.value.category)
 
                     cursor.continue();
                 }
@@ -339,15 +473,13 @@
                     const record = cursor.value;
                     const row = table.insertRow();
 
-                    createEditableCell(tagsRecordsDB, row, record.tag, 'editable', cursor.key, record, 'tag');
+                    createCell(tagsRecordsDB, row, record.tag);
 
-                    // Cell for Edit and Delete buttons
-                    const actionCell = row.insertCell();
-                    // adding quotes because cursor.key is a string and value shows without quotes
-                    actionCell.innerHTML = `<button onclick="deleteRecord('${tagsRecordsDB}', ${cursor.key})">Delete</button>`;
+                    generateActionCells(row, tagsRecordsDB, cursor.key, cursor.value, 'trackerTagModal')
                     
                     // also adds the tag values to select
                     addOptionToSelect('timeTrackerTagsSelect', cursor.value.tag)
+                    addOptionToSelect('editTimeTrackerTagsSelect', cursor.value.tag)
 
 
                     cursor.continue();
@@ -361,7 +493,7 @@
 
         function refreshDisplayAccordingToDb(db) {
             if (db === timeRecordsDB) {
-                displayTimeTrackerRecords();
+                fetchTimeTrackerRecords();
             } else if (db === categoryRecordsDB) {
                 displayTrackerCategory();
             } else if (db === tagsRecordsDB) {
@@ -397,7 +529,10 @@
 
             // TO BE UPDATED
             const updatedRecord = {...record}
-            updatedRecord[field] = value            
+            if (field && value) {
+                updatedRecord[field] = value            
+            }
+            console.log(updatedRecord, key);
             const request = await store.put(updatedRecord, key);
 
             request.onsuccess = function(e) {
@@ -497,23 +632,33 @@
             localStorage.setItem('pomodoroConfig', JSON.stringify(config))
         }
 
-        function setValuesBasedOnTimeRecord(record) {
-            document.getElementById('timeTrackerDescriptionInput').value = record.description;
-            document.getElementById('timeTrackerCategorySelect').value = record.category;
+        function toLocalDateTimeStringUsingLocale(date) {
+            // Format the date to "YYYY-MM-DDTHH:mm"
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
+            let formattedDate = date.toLocaleString('sv-SE', options); // 'sv-SE' helps to ensure the use of ISO-like format (YYYY-MM-DDTHH:mm)
+            return formattedDate.replace(' ', 'T'); // Ensure the format matches "YYYY-MM-DDTHH:mm"
+        }
+        function setValuesBasedOnTimeRecord(record, config = {
+            descriptionInputId: 'timeTrackerDescriptionInput',
+            categorySelectId: 'timeTrackerCategorySelect',
+            tagsSelectId: 'timeTrackerTagsSelect',
+            startTimeInput: 'timeTrackerStartTimeInput',
+            stopTimeInput: ''
+        }) {
+            document.getElementById(config.descriptionInputId).value = record.description;
+            document.getElementById(config.categorySelectId).value = record.category;
 
             record.tags.forEach(tag => {
-                let option = Array.from(document.getElementById('timeTrackerTagsSelect').options).find(option => option.value === tag);
+                let option = Array.from(document.getElementById(config.tagsSelectId).options).find(option => option.value === tag);
                 if (option) option.selected = true;
             });
 
-            function toLocalDateTimeStringUsingLocale(date) {
-                // Format the date to "YYYY-MM-DDTHH:mm"
-                const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false };
-                let formattedDate = date.toLocaleString('sv-SE', options); // 'sv-SE' helps to ensure the use of ISO-like format (YYYY-MM-DDTHH:mm)
-                return formattedDate.replace(' ', 'T'); // Ensure the format matches "YYYY-MM-DDTHH:mm"
+            const localStartTime = toLocalDateTimeStringUsingLocale(new Date(record.startTime));
+            document.getElementById(config.startTimeInput).value = localStartTime;
+            if (config.stopTimeInput) {
+                const localStopTime = toLocalDateTimeStringUsingLocale(new Date(record.stopTime));
+            document.getElementById(config.stopTimeInput).value = localStopTime;
             }
-            const localTime = toLocalDateTimeStringUsingLocale(new Date(record.startTime));
-            document.getElementById('timeTrackerStartTimeInput').value = localTime;
         }
         function checkIfLatestRecordIsNotFinished() {
             const latestRecord = timeTrackingRecords[0]
@@ -581,20 +726,12 @@
     </script>
     <script>
         /* EDIT TABLE CELL FUNCTIONS */
-        function createCombinedEditableCell(recordDb, row, contentArr = [{ textContent: '', field: ''}], className, key, record, joinContent) {
+        function createCombinedCell(recordDb, row, contentArr = [{ textContent: '', field: ''}], joinContent) {
             let cell = row.insertCell();
-            cell.className = className;
 
             const combinedHTML = contentArr.map(content => {
                 const span = document.createElement('span');
                 span.textContent = content.textContent;
-                
-                if (key) {
-                    span.addEventListener('click', function() {
-                        makeCellEditable(recordDb, this, key, record, content.field);
-                    });
-                }
-
                 return span;
             })
 
@@ -606,40 +743,20 @@
             }
         }
 
-        function createEditableCell(recordDb, row, textContent, className, key, record, field) {
+        function createCell(recordDb, row, textContent) {
             let cell = row.insertCell();
-            if (className) {
-                cell.className = className;
-            }
             cell.textContent = textContent;
-
-            if (key) {
-                cell.addEventListener('click', function() {
-                    // Your logic to make the cell editable
-                    makeCellEditable(recordDb, this, key, record, field);
-                });
-            }
         }
-
-        /* WORK ON THIS NEXT - ADD IN A TYPE TO CHANGE THE INPUT TYPE WHEN EDITING */
-        function makeCellEditable(recordDb, td, key, record, field) {
-            const originalText = td.textContent;
-            td.innerHTML = `<input type="text" value="${originalText}" />`;
-            const input = td.querySelector('input');
-            input.focus();
-
-            input.addEventListener('blur', function() {
-                td.innerHTML = '';
-                td.textContent = originalText; // Or handle updating the record in IndexedDB
-                // editRecordField(recordDb, key, record, field, td.textContent)
-            });
-
-            input.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    td.textContent = this.value; // Or handle updating the record in IndexedDB
-                    editRecordField(recordDb, key, record, field, td.textContent)
-                }
-            });
+    </script>
+    <script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+        }
+        function toggleModalAndDeleteClassName(id) {
+            const modal = document.getElementById(id);
+            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+            document.querySelector('.deleteMeOnUpdateOrClose').remove()
         }
     </script>
     <script>
@@ -656,15 +773,11 @@
                 setTimeout(() => container.removeChild(toast), 500); // Ensure transition can play before removal
             }, 2000);
         }
-        function toggleHotkeyModal() {
-            var modal = document.getElementById('hotkeyModal');
-            modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
-        }
 
         document.addEventListener('keydown', function(event) {
             const hotkeyActions = {
                 '/': function() {
-                    toggleHotkeyModal()
+                    toggleModal('hotkeyModal')
                 },
                 '!': function() {
                     if (event.shiftKey) {
@@ -689,7 +802,19 @@
                 'Escape': function () {
                     const hotkeyModal = document.getElementById('hotkeyModal');
                     if (hotkeyModal.style.display === 'block') {
-                        toggleHotkeyModal();
+                        toggleModal('hotkeyModal');
+                    }
+                    const timeRecordsModal = document.getElementById('timeRecordsModal');
+                    if (timeRecordsModal.style.display === 'block') {
+                        toggleModal('timeRecordsModal');
+                    }
+                    const trackerCategoryModal = document.getElementById('trackerCategoryModal');
+                    if (trackerCategoryModal.style.display === 'block') {
+                        toggleModal('trackerCategoryModal');
+                    }
+                    const trackerTagModal = document.getElementById('trackerTagModal');
+                    if (trackerTagModal.style.display === 'block') {
+                        toggleModal('trackerTagModal');
                     }
                 }
             }
@@ -701,7 +826,12 @@
     </script>
     <script>
         /* TIMER FUNCTIONS */
-
+        function getSelectedValues(selectElementId) {
+            const selectElement = document.getElementById(selectElementId);
+            const selectedValues = Array.from(selectElement.selectedOptions)
+                                        .map(option => option.value);
+            return selectedValues;
+        }
         function getTimeRecord({
             description,
             tags,
@@ -717,13 +847,6 @@
 
             let taskDescription = document.getElementById('timeTrackerDescriptionInput').value;
             let category = document.getElementById('timeTrackerCategorySelect').value;
-
-            function getSelectedValues(selectElementId) {
-                const selectElement = document.getElementById(selectElementId);
-                const selectedValues = Array.from(selectElement.selectedOptions)
-                                            .map(option => option.value);
-                return selectedValues;
-            }
             let tagsSelect = getSelectedValues('timeTrackerTagsSelect');
 
             let record = {
@@ -1006,6 +1129,17 @@
             transaction.onerror = function(e) {
                 console.error("Error creating tracker tag: ", e);
             };
+        }
+    </script>
+    <script>
+        /**
+         * Capitalizes the first letter of a given word.
+         * @param {string} word - The word to capitalize.
+         * @return {string} The word with the first letter capitalized.
+         */
+        function capitalizeFirstLetter(word) {
+            if (!word) return word; // Return the original word if it's empty or not provided
+            return word.charAt(0).toUpperCase() + word.slice(1);
         }
     </script>
     <script>

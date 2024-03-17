@@ -48,17 +48,15 @@ Done
     - Update the "set to last stop time today, to actually be for today ✅ 2024-02-23
         - if there's no previous record, don't show the button ✅ 2024-02-23
 
+- 2024-03-17
+    - add modal to edit time records, categories, and tags ✅ 2024-03-17
+
 Working on
-- add hotkeys to be able to focus on specific inputs and tables to navigate everything through the keyboard
+- on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
 
 Not done
-- 2024-02-04
-    - make the cells editable able to choose between different inputs
-
 - 2024-02-05
-    - there's a bug when you click on an editable cell, and you try clicking into it to go to another position where it triggers again and makes it a regular cell again
     - in editable cell, add an option to show the records
-    - on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
     - add another table that saves all the different descriptions, categories, tags combinations there are, so that when a user types in the description, it can pop up later on for autocomplete
 
 - 2024-02-12
@@ -71,3 +69,6 @@ Not done
 
 - 2024-02-24
     - Add a "play button" next to a log that automatically fills out the start timer inputs
+
+- 2024-03-17
+    - make sure when you update categories and tags to also update the time records with those values
