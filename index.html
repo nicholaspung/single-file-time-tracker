@@ -247,7 +247,6 @@
                     acc.push(curr)
                 } else {
                     if (JSON.stringify(curr) !== JSON.stringify(keys[curr.key].value)) {
-                        console.log(keys[curr.key]);
                         acc[keys[curr.key].index] = curr
                     }
                 }
@@ -292,44 +291,66 @@
             referenceElement.parentNode.insertBefore(updateButton, referenceElement);
 
             toggleModal(modalId)
+            document.querySelector('#editTimeTrackerDescriptionInput').focus()
         }
         function openEditTrackerCategoryModalWData(recordJsonString, modalId, key) {
+            const editCategoryInputElement = document.querySelector('#editTrackerCategoryCategoryInput')
             const record = JSON.parse(recordJsonString.replaceAll('|', '"'))
-            document.querySelector('#editTrackerCategoryCategoryInput').value = record.category
+            editCategoryInputElement.value = record.category
             
             const updateButton = document.createElement("button");
             updateButton.textContent = "Update";
             updateButton.className = "deleteMeOnUpdateOrClose"
             updateButton.onclick = function() {
-                const updatedCategory = document.querySelector('#editTrackerCategoryCategoryInput').value
+                const updatedCategory = editCategoryInputElement.value
                 editRecordField(categoryRecordsDB, key, { category: updatedCategory})
-                // function to be made
-                // map through timetrackingrecords, check if any category === record
-                // if true, update timetracking record with new category, else do nothing
-                // call fetch time tracking record
+
+                timeTrackingRecords.forEach(async function(timeRecord) {
+                    if (timeRecord.category === record.category) {
+                        await saveTimeRecord({ ...timeRecord, key: timeRecord.key, category: updatedCategory })
+                    }
+                })
+                fetchTimeTrackerRecords()
+
                 toggleModalAndDeleteClassName(modalId)
             }
             const referenceElement = document.getElementById('trackerCategoryCloseButton');
             referenceElement.parentNode.insertBefore(updateButton, referenceElement);
 
             toggleModal(modalId)
+            editCategoryInputElement.focus()
         }
         function openEditTrackerTagModalWData(recordJsonString, modalId, key) {
+            const editTagInputElement = document.querySelector('#editTrackerTagTagInput')
             const record = JSON.parse(recordJsonString.replaceAll('|', '"'))
-            document.querySelector('#editTrackerTagTagInput').value = record.tag
+            editTagInputElement.value = record.tag
             
             const updateButton = document.createElement("button");
             updateButton.textContent = "Update";
             updateButton.className = "deleteMeOnUpdateOrClose"
             updateButton.onclick = function() {
-                const updatedTag = document.querySelector('#editTrackerTagTagInput').value
+                const updatedTag = editTagInputElement.value
                 editRecordField(tagsRecordsDB, key, { tag: updatedTag})
+
+                timeTrackingRecords.forEach(async function(timeRecord) {
+                    const tagIndex = timeRecord.tags.findIndex(function(el) {
+                        return el === record.tag
+                    })
+                    if (tagIndex !== -1) {
+                        const newTags = [...timeRecord.tags]
+                        newTags[tagIndex] = updatedTag
+                        await saveTimeRecord({ ...timeRecord, key: timeRecord.key, tags: newTags })
+                    }
+                })
+                fetchTimeTrackerRecords()
+
                 toggleModalAndDeleteClassName(modalId)
             }
             const referenceElement = document.getElementById('trackerTagCloseButton');
             referenceElement.parentNode.insertBefore(updateButton, referenceElement);
-
+            
             toggleModal(modalId)
+            editTagInputElement.focus()
         }
         function generateActionCells(row, db, key, record, modalId) {
             // Cell for Edit and Delete buttons
@@ -532,7 +553,6 @@
             if (field && value) {
                 updatedRecord[field] = value            
             }
-            console.log(updatedRecord, key);
             const request = await store.put(updatedRecord, key);
 
             request.onsuccess = function(e) {

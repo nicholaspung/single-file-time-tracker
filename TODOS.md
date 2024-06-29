@@ -50,15 +50,12 @@ Done
 
 - 2024-03-17
     - add modal to edit time records, categories, and tags ✅ 2024-03-17
+    - make sure when you update categories and tags to also update the time records with those values ✅ 2024-03-18
 
 Working on
-- on a new day, bucket all the time tracker records into a csv and store it somewhere to be downloaded later, maybe have a button/link that says download csv for all previous time tracker data
+
 
 Not done
-- 2024-02-05
-    - in editable cell, add an option to show the records
-    - add another table that saves all the different descriptions, categories, tags combinations there are, so that when a user types in the description, it can pop up later on for autocomplete
-
 - 2024-02-12
     - create a button that is able to check the position of the record relative to the other records, and be able to set the time to the previous/latest start/stop time
     - make into a desktop app using Tauri (figure out Tauri and Rust)
@@ -70,5 +67,7 @@ Not done
 - 2024-02-24
     - Add a "play button" next to a log that automatically fills out the start timer inputs
 
-- 2024-03-17
-    - make sure when you update categories and tags to also update the time records with those values
+- 2024-03-18
+    - Add JSDoc comments for help with types
+    - add a search bar for tracked time records/categories/tags
+    - remember to add all the pop up toasts for actions that are taken
